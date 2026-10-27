@@ -3,14 +3,13 @@ using EliteRec.Core.Recording;
 namespace EliteRec.Encoding;
 
 /// <summary>
-/// Пара MP3: микс моно 128 кбит/с и стерео 192 кбит/с, L=микрофон / R=система.
+/// Пара файлов записи: микс моно и стерео L=микрофон / R=система, в MP3, FLAC, Opus или WAV.
 /// Пока идёт запись, файлы скрыты (<c>.имя.mp3.part</c>) и каждые 5 с сбрасываются на диск;
 /// после падения их подбирает <see cref="RecordingRecovery"/>. Нормальное завершение
 /// дописывает хвост кодера и переименовывает части в итоговые файлы.
 /// </summary>
-public sealed class Mp3RecordingSink : IRecordingSink
+public sealed class RecordingSink : IRecordingSink
 {
-    internal const string PartSuffix = ".mp3.part";
     private const long SyncFrames = SynchronizedAudioMixer.SampleRate * 5L;
     private readonly Part _mix, _stereo;
     private long _sinceSync;
@@ -18,19 +17,20 @@ public sealed class Mp3RecordingSink : IRecordingSink
     public RecordingFiles Files { get; }
     public long Frames { get; private set; }
 
-    public Mp3RecordingSink(string basePath)
+    public RecordingSink(string basePath, RecordingFormat format)
     {
-        string full = Path.GetFullPath(basePath);
+        string full = Path.GetFullPath(basePath), extension = PartFormat.Extension(format);
         string folder = Path.GetDirectoryName(full)!, name = Path.GetFileName(full);
         Directory.CreateDirectory(folder);
-        Files = new(full + ".mp3", full + "_stereo.mp3");
+        Files = new(full + extension, full + RecordingRecovery.StereoSuffix + extension);
         if (File.Exists(Files.MixPath) || File.Exists(Files.StereoPath)) throw new IOException($"Файл записи уже существует: {name}.");
-        _mix = new Part(PartPath(folder, name), Files.MixPath, stereo: false);
-        try { _stereo = new Part(PartPath(folder, name + RecordingRecovery.StereoSuffix), Files.StereoPath, stereo: true); }
+        _mix = new Part(PartPath(folder, name, extension), Files.MixPath, format, stereo: false);
+        try { _stereo = new Part(PartPath(folder, name + RecordingRecovery.StereoSuffix, extension), Files.StereoPath, format, stereo: true); }
         catch { _mix.Abandon(); throw; }
     }
 
-    internal static string PartPath(string folder, string name) => Path.Combine(folder, "." + name + PartSuffix);
+    internal static string PartPath(string folder, string name, string extension) =>
+        Path.Combine(folder, "." + name + extension + PartFormat.PartSuffix);
 
     public void Write(ReadOnlySpan<float> microphone, ReadOnlySpan<float> system, ReadOnlySpan<float> mix)
     {
@@ -59,25 +59,29 @@ public sealed class Mp3RecordingSink : IRecordingSink
     {
         private readonly string _partPath, _finalPath;
         private readonly FileStream _file;
-        private readonly Mp3Encoder _encoder;
+        private readonly IPartEncoder _encoder;
 
-        internal Part(string partPath, string finalPath, bool stereo)
+        internal Part(string partPath, string finalPath, RecordingFormat format, bool stereo)
         {
             _partPath = partPath; _finalPath = finalPath;
-            _file = new FileStream(partPath, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-            try { _encoder = new Mp3Encoder(stereo); }
+            _file = new FileStream(partPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.Read);
+            try { _encoder = PartFormat.Create(format, stereo, _file); }
             catch { _file.Dispose(); File.Delete(partPath); throw; }
         }
 
-        internal void Write(ReadOnlySpan<float> left, ReadOnlySpan<float> right) => _encoder.Write(left, right, _file);
+        internal void Write(ReadOnlySpan<float> left, ReadOnlySpan<float> right) => _encoder.Write(left, right);
 
-        internal void Sync() => _file.Flush(flushToDisk: true);
+        internal void Sync()
+        {
+            _encoder.Checkpoint();
+            _file.Flush(flushToDisk: true);
+        }
 
         internal void Complete()
         {
             try
             {
-                _encoder.Finish(_file);
+                _encoder.Finish();
                 _file.Flush(flushToDisk: true);
             }
             finally { _encoder.Dispose(); _file.Dispose(); }

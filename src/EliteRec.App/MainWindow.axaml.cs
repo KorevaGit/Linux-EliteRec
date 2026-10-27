@@ -91,7 +91,8 @@ public partial class MainWindow : Window
     private async void OnStartRecording(object? sender, RoutedEventArgs e) => await RunCommandAsync(async session =>
     {
         string name = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + Guid.NewGuid().ToString("N")[..6];
-        await session.StartRecordingAsync(() => new Mp3RecordingSink(Path.Combine(RecordingsFolder(), name)));
+        var format = Model.Format;
+        await session.StartRecordingAsync(() => new RecordingSink(Path.Combine(RecordingsFolder(), name), format));
     });
 
     private static string RecordingsFolder()

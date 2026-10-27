@@ -71,7 +71,7 @@ public class Mp3Tests
 
     private static RecordingFiles WriteSeconds(string basePath, int seconds)
     {
-        using var sink = new Mp3RecordingSink(basePath);
+        using var sink = new RecordingSink(basePath, RecordingFormat.Mp3);
         float[] mic = new float[SynchronizedAudioMixer.BlockFrames], sys = new float[mic.Length], mix = new float[mic.Length];
         for (int block = 0; block < seconds * 100; block++)
         {

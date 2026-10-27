@@ -8,6 +8,7 @@ using EliteRec.App;
 using EliteRec.Core.Audio;
 using EliteRec.Core.Settings;
 using EliteRec.Core.Recording;
+using EliteRec.Encoding;
 using Xunit;
 
 [assembly: AvaloniaTestApplication(typeof(EliteRec.App.Tests.HeadlessSetup))]
@@ -83,7 +84,7 @@ public class PanelTests
         try
         {
             window.Show();
-            Assert.Equal(2, window.GetVisualDescendants().OfType<ComboBox>().Count());
+            Assert.Equal(3, window.GetVisualDescendants().OfType<ComboBox>().Count()); // микрофон, вывод, формат
             Assert.False(window.FindControl<Button>("StartRecordingButton")!.IsEnabled);
             using var frame = window.CaptureRenderedFrame();
             Assert.NotNull(frame);
@@ -111,6 +112,22 @@ public class PanelTests
         Assert.Equal("00:00:10", model.TimerLabel);
         Assert.Equal("Продолжить", model.PauseLabel);
         Assert.True(model.CanStopRecording);
+    }
+
+    [Fact]
+    public void FormatIsSavedAndLockedWhileRecording()
+    {
+        List<DevicePreferences> saved = [];
+        var model = new MainPanelModel(new(Format: "unknown"), saved.Add);
+        Assert.Equal(RecordingFormat.Mp3, model.Format);
+        model.Format = RecordingFormat.Flac;
+        Assert.Equal("flac", Assert.Single(saved).Format);
+        model.UpdateRecording(new(RecordingState.Preview, 0, 0, 0, new(0, 0, 0, 0, 0, 0)));
+        Assert.Contains("FLAC", model.RecordingHint);
+        model.UpdateRecording(new(RecordingState.Recording, 0, 0, 0, new(0, 0, 0, 0, 0, 0)));
+        model.Format = RecordingFormat.Wav;
+        Assert.Equal(RecordingFormat.Flac, model.Format);
+        Assert.Single(saved);
     }
 
     [Fact]

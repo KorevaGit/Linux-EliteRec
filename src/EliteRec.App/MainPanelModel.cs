@@ -13,6 +13,11 @@ public sealed record DeviceOption(string? Id, string Title)
     public override string ToString() => Title;
 }
 
+public sealed record FormatOption(RecordingFormat Value, string Title)
+{
+    public override string ToString() => Title;
+}
+
 public sealed class MainPanelModel : INotifyPropertyChanged
 {
     private DevicePreferences _preferences;
@@ -42,7 +47,7 @@ public sealed class MainPanelModel : INotifyPropertyChanged
         RecordingState.Recording => Text.Get("RecordingNotice"),
         RecordingState.Paused => Text.Get("PausedNotice"),
         RecordingState.Preview when _recording?.Files is { } files => Text.Get("Saved") + " " + Path.GetFileName(files.MixPath),
-        RecordingState.Preview => Text.Get("LivePreview"),
+        RecordingState.Preview => string.Format(CultureInfo.CurrentCulture, Text.Get("LivePreview"), Format.ToString().ToUpperInvariant()),
         _ => Text.Get("AwaitingAudio"),
     });
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -84,6 +89,27 @@ public sealed class MainPanelModel : INotifyPropertyChanged
             nameof(CanStopRecording), nameof(IsRecording), nameof(ShowStart), nameof(TimerLabel), nameof(PauseLabel),
             nameof(MicrophonePeak), nameof(SystemPeak), nameof(RecordingHint), nameof(Status) })
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+    }
+
+    public IReadOnlyList<FormatOption> Formats { get; } =
+        Enum.GetValues<RecordingFormat>().Select(f => new FormatOption(f, f.ToString().ToUpperInvariant())).ToArray();
+    public FormatOption FormatChoice
+    {
+        get => Formats.Single(f => f.Value == Format);
+        set { if (value is not null) Format = value.Value; }
+    }
+    public RecordingFormat Format
+    {
+        get => Enum.TryParse(_preferences.Format, ignoreCase: true, out RecordingFormat format) && Enum.IsDefined(format)
+            ? format : RecordingFormat.Mp3;
+        set
+        {
+            if (!CanChooseDevices || value == Format) return;
+            _preferences = _preferences with { Format = value.ToString().ToLowerInvariant() };
+            Save();
+            foreach (string property in new[] { nameof(Format), nameof(FormatChoice), nameof(RecordingHint), nameof(SettingsError) })
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+        }
     }
 
     public IncompleteRecording? PendingRecovery { get; private set; }

@@ -3,7 +3,8 @@ using System.Text.Json;
 namespace EliteRec.Core.Settings;
 
 // null — явно выбранное «Системный». Отсутствующий конкретный ID остаётся в настройках.
-public sealed record DevicePreferences(string? MicrophoneId = null, string? OutputId = null);
+// Format — формат записи (mp3/flac/wav); неизвестное значение приложение читает как mp3.
+public sealed record DevicePreferences(string? MicrophoneId = null, string? OutputId = null, string Format = "mp3");
 
 public sealed class DevicePreferencesStore(string path)
 {

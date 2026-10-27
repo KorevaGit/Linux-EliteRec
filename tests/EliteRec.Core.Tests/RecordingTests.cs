@@ -93,7 +93,7 @@ public class RecordingTests
         string root = Path.Combine(Path.GetTempPath(), "eliterec-wav-" + Guid.NewGuid());
         try
         {
-            var sink = new WavRecordingSink(Path.Combine(root, "test"));
+            var sink = new RecordingSink(Path.Combine(root, "test"), RecordingFormat.Wav);
             var files = sink.Files;
             sink.Write([.25f, -.25f], [-.5f, .5f], [-.25f, .25f]);
             sink.Dispose(); sink.Dispose();
@@ -117,7 +117,7 @@ public class RecordingTests
         try
         {
             RecordingFiles files;
-            using (var sink = new WavRecordingSink(Path.Combine(root, "extreme")))
+            using (var sink = new RecordingSink(Path.Combine(root, "extreme"), RecordingFormat.Wav))
             {
                 files = sink.Files;
                 sink.Write([float.MaxValue, -float.MaxValue], [float.NaN, float.PositiveInfinity], [1, -1]);

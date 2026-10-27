@@ -4,16 +4,18 @@ using EliteRec.Encoding.Native;
 namespace EliteRec.Encoding;
 
 /// <summary>Потоковый CBR MP3 48 кГц без Xing/ID3: кадры самодостаточны, обрезанный хвост восстанавливается.</summary>
-internal sealed unsafe class Mp3Encoder : IDisposable
+internal sealed unsafe class Mp3Encoder : IPartEncoder
 {
     private nint _encoder;
     private readonly int _channels;
+    private readonly Stream _output;
     // lame.h: 1.25 * отсчёты + 7200 байт достаточно для любого вызова и flush.
     private readonly byte[] _buffer = new byte[SynchronizedAudioMixer.BlockFrames * 5 / 4 + 7200];
     private readonly float[] _left = new float[SynchronizedAudioMixer.BlockFrames], _right = new float[SynchronizedAudioMixer.BlockFrames];
 
-    internal Mp3Encoder(bool stereo)
+    internal Mp3Encoder(bool stereo, Stream output)
     {
+        _output = output;
         _channels = stereo ? 2 : 1;
         _encoder = Lame.Init();
         if (_encoder == 0) throw new InvalidOperationException("libmp3lame: lame_init вернул NULL.");
@@ -32,36 +34,30 @@ internal sealed unsafe class Mp3Encoder : IDisposable
         catch { Dispose(); throw; }
     }
 
-    internal void Write(ReadOnlySpan<float> left, ReadOnlySpan<float> right, Stream output)
+    public void Write(ReadOnlySpan<float> left, ReadOnlySpan<float> right)
     {
         ObjectDisposedException.ThrowIf(_encoder == 0, this);
         if (left.Length > _left.Length || (_channels == 2 && right.Length != left.Length)) throw new ArgumentException("Неверный MP3-блок.");
-        Clean(left, _left);
-        if (_channels == 2) Clean(right, _right);
+        PartFormat.Clean(left, _left);
+        if (_channels == 2) PartFormat.Clean(right, _right);
         fixed (float* l = _left, r = _right)
         fixed (byte* target = _buffer)
         {
             int count = Lame.Encode(_encoder, l, _channels == 2 ? r : l, left.Length, target, _buffer.Length);
             Check(count);
-            output.Write(_buffer, 0, count);
+            _output.Write(_buffer, 0, count);
         }
     }
 
-    internal void Finish(Stream output)
+    public void Finish()
     {
         ObjectDisposedException.ThrowIf(_encoder == 0, this);
         fixed (byte* target = _buffer)
         {
             int count = Lame.Flush(_encoder, target, _buffer.Length);
             Check(count);
-            output.Write(_buffer, 0, count);
+            _output.Write(_buffer, 0, count);
         }
-    }
-
-    private static void Clean(ReadOnlySpan<float> source, float[] target)
-    {
-        for (int i = 0; i < source.Length; i++)
-            target[i] = float.IsFinite(source[i]) ? Math.Clamp(source[i], -1f, 1f) : 0f;
     }
 
     private static void Check(int result)

@@ -30,7 +30,7 @@
 | `EliteRec.Core/Recording` | Модель состояния, контракты сессии/приёмника, ограниченные буферы, оценка часов, resampling и микс |
 | `EliteRec.Audio.Pulse/PulseCaptureStream` | Native capture, метки времени, передача отсчётов в Core, счётчики ошибок |
 | `EliteRec.Audio.Pulse/PulseRecordingSession` | Общий таймлайн, команды с временными границами, поток обработки и жизненный цикл |
-| `EliteRec.Encoding/WavRecordingSink` | Пара WAV, заголовки, PCM16, предел RIFF и закрытие файлов |
+| `EliteRec.Encoding/RecordingSink` | Пара файлов (в R2 — WAV; с R3 также MP3/FLAC, см. R3-ENCODING.md), предел RIFF и закрытие файлов |
 | `EliteRec.App` | Предпрослушивание, состояния кнопок, уровни, сохранённый выбор устройств |
 | `tools/EliteRec.Recorder` | Тот же продуктовый тракт без окна, воспроизведение диагностического журнала |
 

@@ -10,8 +10,8 @@
 Реализован R2: два потока libpulse, синхронизация, общий WAV-микс и разделённое
 стерео, ручная запись/пауза/стоп и живые уровни в окне. Часовой прогон на
 виртуальных источниках пройден: максимальный сдвиг 14,188 мс, потерь нет.
-R3 начат: окно пишет MP3 и после падения предлагает восстановить запись
-([docs/R3-ENCODING.md](docs/R3-ENCODING.md)). FLAC/Opus и трей пока не подключены.
+R3: окно пишет MP3, FLAC, Opus или WAV и после падения предлагает восстановить
+запись ([docs/R3-ENCODING.md](docs/R3-ENCODING.md)). Трей пока не подключён.
 
 Алгоритм и текущие результаты — [docs/R2-AUDIO.md](docs/R2-AUDIO.md).
 
@@ -27,6 +27,6 @@ dotnet run --project src/EliteRec.App -c Release --no-build
 dotnet tools/EliteRec.Probe/bin/Release/net10.0/EliteRec.Probe.dll help
 ```
 
-На Linux нужны .NET SDK 10, `libpulse0`, `libmp3lame0` и
+На Linux нужны .NET SDK 10, `libpulse0`, `libmp3lame0`, libFLAC (`libflac14` в Debian 13), `libopus0` и
 `pulseaudio-utils` (для диагностического каталога и smoke-скрипта).
 Продуктовый каталог устройств работает напрямую с libpulse и не требует pactl.

@@ -29,7 +29,7 @@ try
         throw new ArgumentException("Некорректная длительность (1–20000 с) или пауза.");
     string path = Path.GetFullPath(Required("--output"));
     string format = values.GetValueOrDefault("--format", "wav");
-    if (format is not ("wav" or "mp3")) throw new ArgumentException("--format: wav или mp3.");
+    if (format is not ("wav" or "mp3" or "flac" or "opus")) throw new ArgumentException("--format: wav, mp3, flac или opus.");
     await using var session = await PulseRecordingSession.OpenAsync(Required("--source"), Required("--system-source"));
     using var cancelled = new CancellationTokenSource();
     ConsoleCancelEventHandler handler = (_, e) => { e.Cancel = true; cancelled.Cancel(); };
@@ -38,7 +38,7 @@ try
     {
         await Task.Delay(750, cancelled.Token); // Прогрев временной шкалы до начала сохранения.
         var clock = Stopwatch.StartNew();
-        await session.StartRecordingAsync(() => format == "mp3" ? new Mp3RecordingSink(path) : new WavRecordingSink(path));
+        await session.StartRecordingAsync(() => new RecordingSink(path, format switch { "mp3" => RecordingFormat.Mp3, "flac" => RecordingFormat.Flac, "opus" => RecordingFormat.Opus, _ => RecordingFormat.Wav }));
         bool paused = false, resumed = false;
         while (clock.Elapsed.TotalSeconds < seconds && !cancelled.IsCancellationRequested)
         {

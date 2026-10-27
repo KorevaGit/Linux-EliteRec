@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
-"""R3: kill -9 посреди MP3-записи -> части на диске -> восстановление Recorder --recover.
+"""R3: kill -9 посреди записи -> части на диске -> восстановление Recorder --recover.
 
 Два виртуальных null-sink с тоном, Recorder пишет MP3, через --kill-after секунд
 процесс получает SIGKILL. Затем ждём окно активности (15 с) и восстанавливаем.
-Проверяем: итоговые файлы есть, частей нет, каждый кадр — MPEG-1 L3 48 кГц,
-микс MONO 128, стерео STEREO 192 (не joint), длительность близка к записанной.
+Проверяем: итоговые файлы есть, частей нет, длительность близка к записанной.
+MP3: каждый кадр MPEG-1 L3 48 кГц, микс MONO 128, стерео STEREO 192 (не joint).
+FLAC и Opus: файл целиком декодируется GStreamer (flacdec / oggdemux ! opusdec).
+WAV: размеры в заголовке.
 """
 import argparse, array, json, math, os, signal, subprocess, sys, threading, time
 from pathlib import Path
@@ -29,9 +31,26 @@ def frames(path, mode, bitrate):
     return count
 
 
+def gst_seconds(path, *decoder):
+    subprocess.run(["gst-launch-1.0", "-q", "filesrc", "location=" + str(path), "!", *decoder,
+                    "!", "fakesink"], check=True, timeout=60)
+    out = subprocess.check_output(["gst-discoverer-1.0", str(path)], text=True)
+    h, m, sec = next(l for l in out.splitlines() if "Duration" in l).split(": ")[1].split(":")
+    return int(h) * 3600 + int(m) * 60 + float(sec)
+
+
+def wav_seconds(path, channels):
+    data = path.read_bytes()
+    assert int.from_bytes(data[22:24], "little") == channels
+    size = int.from_bytes(data[40:44], "little")
+    assert size == len(data) - 44 and int.from_bytes(data[4:8], "little") == len(data) - 8, f"{path.name}: размеры"
+    return size / (2 * channels) / 48000
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--kill-after", type=float, default=13)
+    parser.add_argument("--format", choices=["mp3", "flac", "opus", "wav"], default="mp3")
     options = parser.parse_args()
     directory = ROOT / "artifacts/r3" / time.strftime("%Y%m%d-%H%M%S")
     directory.mkdir(parents=True)
@@ -61,23 +80,31 @@ def main():
         with (directory / "recorder.log").open("w") as log:
             recorder = subprocess.Popen(["dotnet", str(DLL), "--source", names[0] + ".monitor", "--system-source",
                                          names[1] + ".monitor", "--output", str(base), "--seconds", "600",
-                                         "--format", "mp3"], stdout=log, stderr=log)
+                                         "--format", options.format], stdout=log, stderr=log)
             time.sleep(options.kill_after)
             assert recorder.poll() is None, "Recorder завершился раньше времени"
             os.kill(recorder.pid, signal.SIGKILL); recorder.wait()
-        parts = sorted(p.name for p in directory.glob(".*.mp3.part"))
-        assert parts == [".call.mp3.part", ".call_stereo.mp3.part"], parts
+        parts = sorted(p.name for p in directory.glob(".*.part"))
+        ext = "." + options.format
+        assert parts == [".call" + ext + ".part", ".call_stereo" + ext + ".part"], parts
         early = json.loads(subprocess.check_output(["dotnet", str(DLL), "--recover", str(directory)], text=True))
         assert early == [], "свежие части не должны восстанавливаться"
         time.sleep(16)
         result = json.loads(subprocess.check_output(["dotnet", str(DLL), "--recover", str(directory)], text=True))
         assert len(result) == 1 and len(result[0]["Files"]) == 2, result
-        assert not list(directory.glob(".*.mp3.part")), "части остались"
-        mix = frames(directory / "call.mp3", 3, 128)
-        stereo = frames(directory / "call_stereo.mp3", 0, 192)
-        seconds = min(mix, stereo) * 1152 / 48000
-        report = {"kill_after_s": options.kill_after, "recovered_s": round(seconds, 2),
-                  "mix_frames": mix, "stereo_frames": stereo, "folder": str(directory)}
+        assert not list(directory.glob(".*.part")), "части остались"
+        mix_path, stereo_path = directory / ("call" + ext), directory / ("call_stereo" + ext)
+        if options.format == "mp3":
+            mix, stereo = (frames(mix_path, 3, 128) * 1152 / 48000, frames(stereo_path, 0, 192) * 1152 / 48000)
+        elif options.format == "flac":
+            mix, stereo = (gst_seconds(p, "flacparse", "!", "flacdec") for p in (mix_path, stereo_path))
+        elif options.format == "opus":
+            mix, stereo = (gst_seconds(p, "oggdemux", "!", "opusdec") for p in (mix_path, stereo_path))
+        else:
+            mix, stereo = wav_seconds(mix_path, 1), wav_seconds(stereo_path, 2)
+        seconds = min(mix, stereo)
+        report = {"format": options.format, "kill_after_s": options.kill_after, "recovered_s": round(seconds, 2),
+                  "mix_s": round(mix, 2), "stereo_s": round(stereo, 2), "folder": str(directory)}
         print(json.dumps(report, ensure_ascii=False, indent=2))
         # Прогрев 0,75 с и задержка запуска dotnet; сброс на диск — каждые 5 с, но kill -9 не теряет кэш ОС.
         assert seconds >= options.kill_after - 5, "восстановлено слишком мало"

@@ -9,6 +9,9 @@
     <DataTemplate DataType="app:DeviceOption" x:DataType="app:DeviceOption">
       <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" MaxWidth="280" ToolTip.Tip="{Binding Title}" />
     </DataTemplate>
+    <DataTemplate DataType="app:FormatOption" x:DataType="app:FormatOption">
+      <TextBlock Text="{Binding Title}" />
+    </DataTemplate>
   </Window.DataTemplates>
   <Grid Margin="18,12,18,16" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="14">
     <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
@@ -56,6 +59,10 @@
           </Grid>
         </StackPanel>
       </Border>
+      <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+        <TextBlock Text="{x:Static res:Text.FormatLabel}" VerticalAlignment="Center" FontSize="12" Foreground="#BBBBBB" />
+        <ComboBox Grid.Column="1" ItemsSource="{Binding Formats}" SelectedItem="{Binding FormatChoice, Mode=TwoWay}" IsEnabled="{Binding CanChooseDevices}" MinWidth="110" AutomationProperties.Name="{x:Static res:Text.FormatLabel}" />
+      </Grid>
       <TextBlock Text="{Binding SettingsError}" Foreground="#FCA02E" TextWrapping="Wrap" FontSize="11" />
     </StackPanel>
     <StackPanel Grid.Row="4" Spacing="8">
