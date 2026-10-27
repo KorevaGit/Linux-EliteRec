@@ -41,6 +41,7 @@ public partial class MainWindow : Window
         };
         _meterTimer.Start();
         Closing += OnClosing;
+        FindIncompleteRecordings();
     }
 
     internal MainWindow(MainPanelModel model)
@@ -89,12 +90,38 @@ public partial class MainWindow : Window
 
     private async void OnStartRecording(object? sender, RoutedEventArgs e) => await RunCommandAsync(async session =>
     {
+        string name = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + Guid.NewGuid().ToString("N")[..6];
+        await session.StartRecordingAsync(() => new Mp3RecordingSink(Path.Combine(RecordingsFolder(), name)));
+    });
+
+    private static string RecordingsFolder()
+    {
         string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         if (string.IsNullOrEmpty(desktop)) desktop = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop");
-        string folder = Path.Combine(desktop, Text.Get("RecordingsFolder"));
-        string name = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + Guid.NewGuid().ToString("N")[..6];
-        await session.StartRecordingAsync(() => new WavRecordingSink(Path.Combine(folder, name)));
+        return Path.Combine(desktop, Text.Get("RecordingsFolder"));
+    }
+
+    private void FindIncompleteRecordings()
+    {
+        try { Model.SetRecovery(RecordingRecovery.Find(RecordingsFolder()).FirstOrDefault()); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { ShowError(ex.Message); }
+    }
+
+    private void OnRecoverRecording(object? sender, RoutedEventArgs e) => ResolveRecovery(recording =>
+    {
+        var saved = RecordingRecovery.Recover(recording);
+        Model.SetCommandError(Text.Get("Recovered") + " " + string.Join(", ", saved.Select(Path.GetFileName)));
     });
+
+    private void OnDiscardRecording(object? sender, RoutedEventArgs e) => ResolveRecovery(RecordingRecovery.Discard);
+
+    private void ResolveRecovery(Action<IncompleteRecording> action)
+    {
+        if (Model.PendingRecovery is not { } recording) return;
+        try { action(recording); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { ShowError(ex.Message); }
+        FindIncompleteRecordings();
+    }
 
     private async void OnPauseRecording(object? sender, RoutedEventArgs e) => await RunCommandAsync(session =>
         session.Snapshot.State == RecordingState.Paused ? session.ResumeAsync() : session.PauseAsync());

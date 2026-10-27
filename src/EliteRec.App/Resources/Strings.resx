@@ -23,9 +23,13 @@
   <data name="Stop" xml:space="preserve"><value>Стоп</value></data>
   <data name="RecordingNotice" xml:space="preserve"><value>Идёт запись — предупредите клиента</value></data>
   <data name="PausedNotice" xml:space="preserve"><value>Пауза — не пишется</value></data>
-  <data name="LivePreview" xml:space="preserve"><value>Предпрослушивание · WAV · два файла</value></data>
+  <data name="LivePreview" xml:space="preserve"><value>Предпрослушивание · MP3 · два файла</value></data>
   <data name="Saved" xml:space="preserve"><value>Сохранено:</value></data>
   <data name="RecordingsFolder" xml:space="preserve"><value>Записи EliteRec</value></data>
   <data name="RecordingStatus" xml:space="preserve"><value>Идёт запись</value></data>
   <data name="AudioFailure" xml:space="preserve"><value>Ошибка аудиопотока</value></data>
+  <data name="RecoveryFound" xml:space="preserve"><value>Найдена незавершённая запись от {0:dd.MM HH:mm}, длительность {1}</value></data>
+  <data name="Recover" xml:space="preserve"><value>Восстановить</value></data>
+  <data name="Discard" xml:space="preserve"><value>Удалить</value></data>
+  <data name="Recovered" xml:space="preserve"><value>Восстановлено:</value></data>
 </root>

@@ -16,4 +16,6 @@ public static class Text
     public static string RecordingUnavailable => Get(nameof(RecordingUnavailable));
     public static string AwaitingAudio => Get(nameof(AwaitingAudio));
     public static string Stop => Get(nameof(Stop));
+    public static string Recover => Get(nameof(Recover));
+    public static string Discard => Get(nameof(Discard));
 }

@@ -4,6 +4,7 @@ using EliteRec.App.Resources;
 using EliteRec.Core.Audio;
 using EliteRec.Core.Settings;
 using EliteRec.Core.Recording;
+using EliteRec.Encoding;
 
 namespace EliteRec.App;
 
@@ -82,6 +83,18 @@ public sealed class MainPanelModel : INotifyPropertyChanged
         foreach (string property in new[] { nameof(CanChooseDevices), nameof(CanStartRecording), nameof(CanPauseRecording),
             nameof(CanStopRecording), nameof(IsRecording), nameof(ShowStart), nameof(TimerLabel), nameof(PauseLabel),
             nameof(MicrophonePeak), nameof(SystemPeak), nameof(RecordingHint), nameof(Status) })
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+    }
+
+    public IncompleteRecording? PendingRecovery { get; private set; }
+    public bool HasRecovery => PendingRecovery is not null;
+    public string RecoveryText => PendingRecovery is not { } r ? "" : string.Format(CultureInfo.CurrentCulture,
+        Text.Get("RecoveryFound"), r.LastWriteTime, r.Duration.ToString(@"hh\:mm\:ss", CultureInfo.InvariantCulture));
+
+    public void SetRecovery(IncompleteRecording? recording)
+    {
+        PendingRecovery = recording;
+        foreach (string property in new[] { nameof(PendingRecovery), nameof(HasRecovery), nameof(RecoveryText) })
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
     }
 

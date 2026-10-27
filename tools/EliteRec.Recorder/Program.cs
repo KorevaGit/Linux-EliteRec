@@ -7,10 +7,17 @@ using EliteRec.Encoding;
 try
 {
     if (args.Length == 2 && args[0] == "--replay") return TraceReplay.Run(args[1]);
+    if (args.Length == 2 && args[0] == "--recover")
+    {
+        var recovered = RecordingRecovery.Find(Path.GetFullPath(args[1]))
+            .Select(r => new { r.Name, Seconds = r.Duration.TotalSeconds, Files = RecordingRecovery.Recover(r) }).ToList();
+        Console.WriteLine(JsonSerializer.Serialize(recovered, new JsonSerializerOptions { WriteIndented = true }));
+        return 0;
+    }
     var values = new Dictionary<string, string>(StringComparer.Ordinal);
     for (int i = 0; i < args.Length; i += 2)
     {
-        if (i + 1 >= args.Length || !new[] { "--source", "--system-source", "--output", "--seconds", "--pause-after", "--pause-for", "--close-active" }.Contains(args[i])
+        if (i + 1 >= args.Length || !new[] { "--source", "--system-source", "--output", "--seconds", "--pause-after", "--pause-for", "--close-active", "--format" }.Contains(args[i])
             || !values.TryAdd(args[i], args[i + 1])) throw new ArgumentException("Некорректный аргумент: " + args[i]);
     }
     string Required(string key) => values.GetValueOrDefault(key) ?? throw new ArgumentException("Требуется " + key);
@@ -21,6 +28,8 @@ try
     if (seconds is < 1 or > 20000 || pauseAfter < 0 || pauseFor < 0 || pauseAfter + pauseFor >= seconds)
         throw new ArgumentException("Некорректная длительность (1–20000 с) или пауза.");
     string path = Path.GetFullPath(Required("--output"));
+    string format = values.GetValueOrDefault("--format", "wav");
+    if (format is not ("wav" or "mp3")) throw new ArgumentException("--format: wav или mp3.");
     await using var session = await PulseRecordingSession.OpenAsync(Required("--source"), Required("--system-source"));
     using var cancelled = new CancellationTokenSource();
     ConsoleCancelEventHandler handler = (_, e) => { e.Cancel = true; cancelled.Cancel(); };
@@ -29,7 +38,7 @@ try
     {
         await Task.Delay(750, cancelled.Token); // Прогрев временной шкалы до начала сохранения.
         var clock = Stopwatch.StartNew();
-        await session.StartRecordingAsync(() => new WavRecordingSink(path));
+        await session.StartRecordingAsync(() => format == "mp3" ? new Mp3RecordingSink(path) : new WavRecordingSink(path));
         bool paused = false, resumed = false;
         while (clock.Elapsed.TotalSeconds < seconds && !cancelled.IsCancellationRequested)
         {

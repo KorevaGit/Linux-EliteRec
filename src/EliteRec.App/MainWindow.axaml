@@ -46,7 +46,18 @@
         </Grid>
       </Border>
     </Grid>
-    <TextBlock Grid.Row="3" Text="{Binding SettingsError}" Foreground="#FCA02E" TextWrapping="Wrap" FontSize="11" />
+    <StackPanel Grid.Row="3" Spacing="8">
+      <Border IsVisible="{Binding HasRecovery}" Background="#2E2717" BorderBrush="#6B5626" BorderThickness="1" CornerRadius="6" Padding="10">
+        <StackPanel Spacing="8">
+          <TextBlock Text="{Binding RecoveryText}" Foreground="#F0D48A" TextWrapping="Wrap" FontSize="12" />
+          <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+            <Button Content="{x:Static res:Text.Recover}" Click="OnRecoverRecording" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+            <Button Grid.Column="1" Content="{x:Static res:Text.Discard}" Click="OnDiscardRecording" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+          </Grid>
+        </StackPanel>
+      </Border>
+      <TextBlock Text="{Binding SettingsError}" Foreground="#FCA02E" TextWrapping="Wrap" FontSize="11" />
+    </StackPanel>
     <StackPanel Grid.Row="4" Spacing="8">
       <Button Name="StartRecordingButton" Content="{x:Static res:Text.StartRecording}" IsVisible="{Binding ShowStart}" IsEnabled="{Binding CanStartRecording}" Click="OnStartRecording" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Height="42" />
       <Grid ColumnDefinitions="*,*" ColumnSpacing="10" IsVisible="{Binding IsRecording}">
