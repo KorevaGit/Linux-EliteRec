@@ -1,0 +1,10 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="EliteRec.App.App" RequestedThemeVariant="Dark">
+  <Application.Styles>
+    <SimpleTheme />
+    <Style Selector="Window"><Setter Property="Background" Value="#101010" /><Setter Property="Foreground" Value="#F4F4F4" /><Setter Property="FontSize" Value="13" /></Style>
+    <Style Selector="ComboBox"><Setter Property="Background" Value="#292929" /><Setter Property="Foreground" Value="#F4F4F4" /><Setter Property="CornerRadius" Value="6" /></Style>
+    <Style Selector="Button"><Setter Property="CornerRadius" Value="6" /></Style>
+  </Application.Styles>
+</Application>

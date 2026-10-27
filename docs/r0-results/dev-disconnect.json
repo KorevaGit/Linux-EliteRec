@@ -1,0 +1,104 @@
+{
+  "StartedUtc": "2026-10-27T06:52:13.7430211+00:00",
+  "Server": "PulseAudio (on PipeWire 1.0.5)",
+  "RequestedSeconds": 6,
+  "MeasuredSeconds": 2.016599,
+  "SampleRate": 48000,
+  "Failure": "\u0421\u0435\u0440\u0432\u0435\u0440 \u0438\u043B\u0438 \u043F\u043E\u0442\u043E\u043A \u043E\u0442\u043A\u043B\u044E\u0447\u0451\u043D. \u0410\u0432\u0442\u043E\u0432\u043E\u0441\u0441\u0442\u0430\u043D\u043E\u0432\u043B\u0435\u043D\u0438\u0435 \u043E\u0442\u043D\u043E\u0441\u0438\u0442\u0441\u044F \u043A R4.",
+  "Microphone": {
+    "RequestedDevice": "eliterec_r0_77342f0469.monitor",
+    "ActualDevice": "?",
+    "Frames": 89280,
+    "Holes": 0,
+    "Overflows": 0,
+    "ReadErrors": 0,
+    "Peak": 0,
+    "ClippedFrames": 0,
+    "CallbackP95Ms": 21.57043,
+    "MaxCallbackGapMs": 21.691,
+    "DeliveredDriftPpm": null,
+    "ServerDriftPpm": null
+  },
+  "SystemAudio": {
+    "RequestedDevice": "alsa_output.usb-C-Media_Electronics_Inc._Microsoft_LifeChat_LX-3000-00.analog-stereo.monitor",
+    "ActualDevice": "alsa_output.usb-C-Media_Electronics_Inc._Microsoft_LifeChat_LX-3000-00.analog-stereo.monitor",
+    "Frames": 96960,
+    "Holes": 0,
+    "Overflows": 0,
+    "ReadErrors": 0,
+    "Peak": 0,
+    "ClippedFrames": 0,
+    "CallbackP95Ms": 21.40202,
+    "MaxCallbackGapMs": 21.5741,
+    "DeliveredDriftPpm": null,
+    "ServerDriftPpm": null
+  },
+  "RelativeDeliveredDriftPpm": null,
+  "RelativeServerDriftPpm": null,
+  "RelativeDeliveredChangeMs": null,
+  "Timeline": [
+    {
+      "Seconds": 0.2528235,
+      "MicFrames": 12480,
+      "SystemFrames": 11520,
+      "MicServerSeconds": 0.272129,
+      "SystemServerSeconds": 0.255001,
+      "MicLatencyMs": 12.24,
+      "SystemLatencyMs": 15.108
+    },
+    {
+      "Seconds": 0.5035791,
+      "MicFrames": 24960,
+      "SystemFrames": 24000,
+      "MicServerSeconds": 0.523885,
+      "SystemServerSeconds": 0.506744,
+      "MicLatencyMs": 3.886,
+      "SystemLatencyMs": 6.745
+    },
+    {
+      "Seconds": 0.753691,
+      "MicFrames": 36480,
+      "SystemFrames": 36480,
+      "MicServerSeconds": 0.77682,
+      "SystemServerSeconds": 0.759728,
+      "MicLatencyMs": 16.821,
+      "SystemLatencyMs": -0.271
+    },
+    {
+      "Seconds": 1.0038018,
+      "MicFrames": 48960,
+      "SystemFrames": 48000,
+      "MicServerSeconds": 1.028419,
+      "SystemServerSeconds": 1.011366,
+      "MicLatencyMs": 8.42,
+      "SystemLatencyMs": 11.367
+    },
+    {
+      "Seconds": 1.253978,
+      "MicFrames": 61440,
+      "SystemFrames": 60480,
+      "MicServerSeconds": 1.280084,
+      "SystemServerSeconds": 1.26307,
+      "MicLatencyMs": 0.086,
+      "SystemLatencyMs": 3.072
+    },
+    {
+      "Seconds": 1.504064,
+      "MicFrames": 72960,
+      "SystemFrames": 72960,
+      "MicServerSeconds": 1.533939,
+      "SystemServerSeconds": 1.5193,
+      "MicLatencyMs": 13.94,
+      "SystemLatencyMs": -0.699
+    },
+    {
+      "Seconds": 1.7541402,
+      "MicFrames": 85440,
+      "SystemFrames": 84480,
+      "MicServerSeconds": 1.78588,
+      "SystemServerSeconds": 1.771677,
+      "MicLatencyMs": 5.881,
+      "SystemLatencyMs": 11.677
+    }
+  ]
+}

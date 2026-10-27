@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>Exe</OutputType></PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/EliteRec.Audio.Pulse/EliteRec.Audio.Pulse.csproj" />
+    <ProjectReference Include="../../shared/src/EliteRec.Encoding/EliteRec.Encoding.csproj" />
+  </ItemGroup>
+</Project>

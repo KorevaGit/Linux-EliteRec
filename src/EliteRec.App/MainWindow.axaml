@@ -1,0 +1,58 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="using:EliteRec.App"
+        xmlns:res="using:EliteRec.App.Resources"
+        x:Class="EliteRec.App.MainWindow" x:DataType="app:MainPanelModel"
+        Title="EliteRec" Width="420" Height="560" MinWidth="380" MinHeight="540"
+        WindowStartupLocation="CenterScreen" Icon="avares://EliteRec.App/Assets/eliterec.png">
+  <Window.DataTemplates>
+    <DataTemplate DataType="app:DeviceOption" x:DataType="app:DeviceOption">
+      <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" MaxWidth="280" ToolTip.Tip="{Binding Title}" />
+    </DataTemplate>
+  </Window.DataTemplates>
+  <Grid Margin="18,12,18,16" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="14">
+    <Grid ColumnDefinitions="Auto,*,Auto" ColumnSpacing="10">
+      <Image Source="avares://EliteRec.App/Assets/eliterec.png" Width="30" Height="30" />
+      <StackPanel Grid.Column="1" VerticalAlignment="Center">
+        <TextBlock Text="EliteRec" FontSize="16" FontWeight="Medium" />
+        <TextBlock Text="{Binding Status}" FontSize="11" Foreground="#BBBBBB" TextWrapping="Wrap" />
+      </StackPanel>
+      <TextBlock Grid.Column="2" Text="{Binding TimerLabel}" VerticalAlignment="Center" FontSize="16" />
+    </Grid>
+    <Grid Grid.Row="1" ColumnDefinitions="*,*" ColumnSpacing="12">
+      <Border Background="#1F1F1F" CornerRadius="6" Padding="10">
+        <StackPanel Spacing="6">
+          <TextBlock Text="{x:Static res:Text.You}" Foreground="#D6AD60" FontSize="15" />
+          <TextBlock Text="{x:Static res:Text.ManagerChannel}" FontSize="11" Foreground="#BBBBBB" />
+          <ComboBox ItemsSource="{Binding Microphones}" SelectedItem="{Binding Microphone, Mode=TwoWay}" IsEnabled="{Binding CanChooseDevices}" HorizontalAlignment="Stretch" AutomationProperties.Name="{x:Static res:Text.You}" />
+        </StackPanel>
+      </Border>
+      <Border Grid.Column="1" Background="#1F1F1F" CornerRadius="6" Padding="10">
+        <StackPanel Spacing="6">
+          <TextBlock Text="{x:Static res:Text.SystemAudio}" Foreground="#86D7F5" FontSize="15" />
+          <TextBlock Text="{x:Static res:Text.ClientChannel}" FontSize="11" Foreground="#BBBBBB" />
+          <ComboBox ItemsSource="{Binding Outputs}" SelectedItem="{Binding Output, Mode=TwoWay}" IsEnabled="{Binding CanChooseDevices}" HorizontalAlignment="Stretch" AutomationProperties.Name="{x:Static res:Text.SystemAudio}" />
+        </StackPanel>
+      </Border>
+    </Grid>
+    <Grid Grid.Row="2" RowDefinitions="Auto,*">
+      <TextBlock Text="{x:Static res:Text.PreviewHint}" TextWrapping="Wrap" FontSize="12" Foreground="#BBBBBB" TextAlignment="Center" />
+      <Border Grid.Row="1" BorderBrush="#343434" BorderThickness="1" CornerRadius="6" Margin="0,12,0,0">
+        <Grid ColumnDefinitions="*,1,*" RowDefinitions="*,Auto,*" Margin="14,18">
+          <Border Grid.Column="1" Grid.RowSpan="3" Background="#333333" />
+          <ProgressBar Grid.Row="1" Margin="0,0,8,0" Minimum="0" Maximum="1" Value="{Binding MicrophonePeak}" Height="8" FlowDirection="RightToLeft" Foreground="#D6AD60" />
+          <ProgressBar Grid.Row="1" Grid.Column="2" Margin="8,0,0,0" Minimum="0" Maximum="1" Value="{Binding SystemPeak}" Height="8" Foreground="#86D7F5" />
+          <TextBlock Grid.Row="2" Grid.ColumnSpan="3" Text="{Binding RecordingHint}" TextWrapping="Wrap" Foreground="#BBBBBB" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" Margin="0,12,0,0" />
+        </Grid>
+      </Border>
+    </Grid>
+    <TextBlock Grid.Row="3" Text="{Binding SettingsError}" Foreground="#FCA02E" TextWrapping="Wrap" FontSize="11" />
+    <StackPanel Grid.Row="4" Spacing="8">
+      <Button Name="StartRecordingButton" Content="{x:Static res:Text.StartRecording}" IsVisible="{Binding ShowStart}" IsEnabled="{Binding CanStartRecording}" Click="OnStartRecording" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Height="42" />
+      <Grid ColumnDefinitions="*,*" ColumnSpacing="10" IsVisible="{Binding IsRecording}">
+        <Button Content="{Binding PauseLabel}" IsEnabled="{Binding CanPauseRecording}" Click="OnPauseRecording" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Height="42" />
+        <Button Grid.Column="1" Content="{x:Static res:Text.Stop}" IsEnabled="{Binding CanStopRecording}" Click="OnStopRecording" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Height="42" />
+      </Grid>
+    </StackPanel>
+  </Grid>
+</Window>

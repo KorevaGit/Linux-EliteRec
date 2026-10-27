@@ -1,0 +1,257 @@
+{
+  "StartedUtc": "2026-10-27T06:52:07.4900938+00:00",
+  "Server": "PulseAudio (on PipeWire 1.0.5)",
+  "RequestedSeconds": 6,
+  "MeasuredSeconds": 6.0201783,
+  "SampleRate": 48000,
+  "Failure": null,
+  "Microphone": {
+    "RequestedDevice": "alsa_input.usb-C-Media_Electronics_Inc._Microsoft_LifeChat_LX-3000-00.mono-fallback",
+    "ActualDevice": "alsa_input.usb-C-Media_Electronics_Inc._Microsoft_LifeChat_LX-3000-00.mono-fallback",
+    "Frames": 288000,
+    "Holes": 0,
+    "Overflows": 0,
+    "ReadErrors": 0,
+    "Peak": 0.12530517578125,
+    "ClippedFrames": 0,
+    "CallbackP95Ms": 21.55151,
+    "MaxCallbackGapMs": 21.716,
+    "DeliveredDriftPpm": null,
+    "ServerDriftPpm": null
+  },
+  "SystemAudio": {
+    "RequestedDevice": "eliterec_r0_77342f0469.monitor",
+    "ActualDevice": "eliterec_r0_77342f0469.monitor",
+    "Frames": 288000,
+    "Holes": 0,
+    "Overflows": 0,
+    "ReadErrors": 0,
+    "Peak": 0.244140625,
+    "ClippedFrames": 0,
+    "CallbackP95Ms": 21.5394,
+    "MaxCallbackGapMs": 21.8616,
+    "DeliveredDriftPpm": null,
+    "ServerDriftPpm": null
+  },
+  "RelativeDeliveredDriftPpm": null,
+  "RelativeServerDriftPpm": null,
+  "RelativeDeliveredChangeMs": 0,
+  "Timeline": [
+    {
+      "Seconds": 0.2523748,
+      "MicFrames": 11520,
+      "SystemFrames": 11520,
+      "MicServerSeconds": 0.273662,
+      "SystemServerSeconds": 0.256176,
+      "MicLatencyMs": 33.767,
+      "SystemLatencyMs": 16.276
+    },
+    {
+      "Seconds": 0.5029496,
+      "MicFrames": 24000,
+      "SystemFrames": 24000,
+      "MicServerSeconds": 0.523103,
+      "SystemServerSeconds": 0.507706,
+      "MicLatencyMs": 23.104,
+      "SystemLatencyMs": 7.707
+    },
+    {
+      "Seconds": 0.7530268,
+      "MicFrames": 35520,
+      "SystemFrames": 35520,
+      "MicServerSeconds": 0.771169,
+      "SystemServerSeconds": 0.760405,
+      "MicLatencyMs": 31.171,
+      "SystemLatencyMs": 20.406
+    },
+    {
+      "Seconds": 1.0031087,
+      "MicFrames": 48000,
+      "SystemFrames": 48000,
+      "MicServerSeconds": 1.02023,
+      "SystemServerSeconds": 1.011901,
+      "MicLatencyMs": 20.231,
+      "SystemLatencyMs": 11.902
+    },
+    {
+      "Seconds": 1.2531841,
+      "MicFrames": 59520,
+      "SystemFrames": 59520,
+      "MicServerSeconds": 1.269284,
+      "SystemServerSeconds": 1.26339,
+      "MicLatencyMs": 29.285,
+      "SystemLatencyMs": 23.391
+    },
+    {
+      "Seconds": 1.5032628,
+      "MicFrames": 72000,
+      "SystemFrames": 72000,
+      "MicServerSeconds": 1.51611,
+      "SystemServerSeconds": 1.516716,
+      "MicLatencyMs": 16.112,
+      "SystemLatencyMs": 16.717
+    },
+    {
+      "Seconds": 1.7533837,
+      "MicFrames": 83520,
+      "SystemFrames": 84480,
+      "MicServerSeconds": 1.76484,
+      "SystemServerSeconds": 1.768565,
+      "MicLatencyMs": 24.844,
+      "SystemLatencyMs": 8.569
+    },
+    {
+      "Seconds": 2.0034738,
+      "MicFrames": 96000,
+      "SystemFrames": 96000,
+      "MicServerSeconds": 2.013527,
+      "SystemServerSeconds": 2.020368,
+      "MicLatencyMs": 13.528,
+      "SystemLatencyMs": 20.369
+    },
+    {
+      "Seconds": 2.2537028,
+      "MicFrames": 107520,
+      "SystemFrames": 108480,
+      "MicServerSeconds": 2.26236,
+      "SystemServerSeconds": 2.27232,
+      "MicLatencyMs": 22.361,
+      "SystemLatencyMs": 12.321
+    },
+    {
+      "Seconds": 2.503862,
+      "MicFrames": 120000,
+      "SystemFrames": 120000,
+      "MicServerSeconds": 2.511121,
+      "SystemServerSeconds": 2.524199,
+      "MicLatencyMs": 11.129,
+      "SystemLatencyMs": 24.207
+    },
+    {
+      "Seconds": 2.7539438,
+      "MicFrames": 131520,
+      "SystemFrames": 132480,
+      "MicServerSeconds": 2.760188,
+      "SystemServerSeconds": 2.773222,
+      "MicLatencyMs": 20.189,
+      "SystemLatencyMs": 13.224
+    },
+    {
+      "Seconds": 3.0040199,
+      "MicFrames": 144000,
+      "SystemFrames": 144000,
+      "MicServerSeconds": 3.008902,
+      "SystemServerSeconds": 3.024765,
+      "MicLatencyMs": 8.903,
+      "SystemLatencyMs": 24.766
+    },
+    {
+      "Seconds": 3.2541007,
+      "MicFrames": 155520,
+      "SystemFrames": 156480,
+      "MicServerSeconds": 3.257622,
+      "SystemServerSeconds": 3.276314,
+      "MicLatencyMs": 17.623,
+      "SystemLatencyMs": 16.316
+    },
+    {
+      "Seconds": 3.5042084,
+      "MicFrames": 167040,
+      "SystemFrames": 168000,
+      "MicServerSeconds": 3.506368,
+      "SystemServerSeconds": 3.52789,
+      "MicLatencyMs": 26.369,
+      "SystemLatencyMs": 27.891
+    },
+    {
+      "Seconds": 3.7543363,
+      "MicFrames": 179520,
+      "SystemFrames": 180480,
+      "MicServerSeconds": 3.755136,
+      "SystemServerSeconds": 3.779489,
+      "MicLatencyMs": 15.14,
+      "SystemLatencyMs": 19.493
+    },
+    {
+      "Seconds": 4.0045337,
+      "MicFrames": 192000,
+      "SystemFrames": 192000,
+      "MicServerSeconds": 4.003974,
+      "SystemServerSeconds": 4.031157,
+      "MicLatencyMs": 3.978,
+      "SystemLatencyMs": 31.162
+    },
+    {
+      "Seconds": 4.2546619,
+      "MicFrames": 203520,
+      "SystemFrames": 204480,
+      "MicServerSeconds": 4.258446,
+      "SystemServerSeconds": 4.276403,
+      "MicLatencyMs": 18.448,
+      "SystemLatencyMs": 16.404
+    },
+    {
+      "Seconds": 4.5049449,
+      "MicFrames": 216000,
+      "SystemFrames": 216000,
+      "MicServerSeconds": 4.507699,
+      "SystemServerSeconds": 4.527774,
+      "MicLatencyMs": 7.706,
+      "SystemLatencyMs": 27.782
+    },
+    {
+      "Seconds": 4.7550273,
+      "MicFrames": 227520,
+      "SystemFrames": 227520,
+      "MicServerSeconds": 4.756756,
+      "SystemServerSeconds": 4.778951,
+      "MicLatencyMs": 16.757,
+      "SystemLatencyMs": 38.952
+    },
+    {
+      "Seconds": 5.0053029,
+      "MicFrames": 240000,
+      "SystemFrames": 240000,
+      "MicServerSeconds": 5.006006,
+      "SystemServerSeconds": 5.03032,
+      "MicLatencyMs": 6.007,
+      "SystemLatencyMs": 30.321
+    },
+    {
+      "Seconds": 5.2555795,
+      "MicFrames": 251520,
+      "SystemFrames": 251520,
+      "MicServerSeconds": 5.255257,
+      "SystemServerSeconds": 5.281692,
+      "MicLatencyMs": 15.258,
+      "SystemLatencyMs": 41.694
+    },
+    {
+      "Seconds": 5.5057373,
+      "MicFrames": 264000,
+      "SystemFrames": 264000,
+      "MicServerSeconds": 5.504388,
+      "SystemServerSeconds": 5.532944,
+      "MicLatencyMs": 4.389,
+      "SystemLatencyMs": 32.945
+    },
+    {
+      "Seconds": 5.7558984,
+      "MicFrames": 276480,
+      "SystemFrames": 276480,
+      "MicServerSeconds": 5.765934,
+      "SystemServerSeconds": 5.775696,
+      "MicLatencyMs": 5.935,
+      "SystemLatencyMs": 15.697
+    },
+    {
+      "Seconds": 6.006033,
+      "MicFrames": 288000,
+      "SystemFrames": 288000,
+      "MicServerSeconds": 6.015409,
+      "SystemServerSeconds": 6.026661,
+      "MicLatencyMs": 15.41,
+      "SystemLatencyMs": 26.662
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "catalog_defaults": "pass",
+  "added": "pass",
+  "monitor_mapping": "pass",
+  "monitor_excluded_from_inputs": "pass",
+  "removed": "pass",
+  "graceful_shutdown": "pass"
+}

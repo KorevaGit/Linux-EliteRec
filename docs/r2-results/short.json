@@ -1,0 +1,26 @@
+{
+  "wall_seconds_requested": 12,
+  "pause_seconds": 0,
+  "wav_seconds": 12.0,
+  "markers_compared": 8,
+  "max_channel_lag_ms": 16.1875,
+  "pcm_peaks": [
+    9000,
+    9000
+  ],
+  "onset_resolution_samples": 1,
+  "capture": {
+    "Holes": 0,
+    "Overflows": 0,
+    "UntimedFrames": 0
+  },
+  "synchronization": {
+    "MissingMicrophoneFrames": 0,
+    "MissingSystemFrames": 0,
+    "MicrophoneFrames": 629760,
+    "SystemFrames": 626880,
+    "MicrophoneClockPpm": 53.445233002324954,
+    "SystemClockPpm": 152.838171759484
+  },
+  "status": "pass"
+}

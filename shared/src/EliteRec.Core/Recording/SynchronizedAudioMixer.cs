@@ -1,0 +1,139 @@
+namespace EliteRec.Core.Recording;
+
+public enum AudioChannel { Microphone, System }
+
+public sealed record SynchronizerStatistics(long MissingMicrophoneFrames, long MissingSystemFrames,
+    long MicrophoneFrames, long SystemFrames, double MicrophoneClockPpm, double SystemClockPpm,
+    long FutureMicrophoneFrames = 0, long FutureSystemFrames = 0, long ExpiredMicrophoneFrames = 0, long ExpiredSystemFrames = 0);
+
+/// <summary>
+/// Два ограниченных кольцевых буфера и общий таймлайн 48 кГц. Модель часов
+/// строится по меткам захвата, а не по порядку прихода callback. Файлового I/O нет.
+/// </summary>
+public sealed class SynchronizedAudioMixer
+{
+    public const int SampleRate = 48000;
+    public const int BlockFrames = 480;
+    private readonly object _gate = new();
+    private readonly ClockedBuffer _microphone = new(), _system = new();
+
+    public void Push(AudioChannel channel, double firstSampleSeconds, ReadOnlySpan<float> samples)
+    {
+        if (!double.IsFinite(firstSampleSeconds)) throw new ArgumentException("Некорректная метка времени.");
+        lock (_gate)
+        {
+            (channel == AudioChannel.Microphone ? _microphone : _system).Push(firstSampleSeconds, samples);
+        }
+    }
+
+    public void Render(long firstFrame, Span<float> microphone, Span<float> system)
+    {
+        if (microphone.Length != system.Length) throw new ArgumentException("Размеры каналов различаются.");
+        lock (_gate)
+        {
+            _microphone.Render(firstFrame, microphone);
+            _system.Render(firstFrame, system);
+        }
+    }
+
+    public bool TryRender(long firstFrame, Span<float> microphone, Span<float> system)
+    {
+        if (microphone.Length != system.Length) throw new ArgumentException("Размеры каналов различаются.");
+        lock (_gate)
+        {
+            // Запись не является realtime-выводом: поздний callback можно дождаться.
+            // Нельзя продвигать курсор и писать тишину за ещё не доставленные данные.
+            if (!_microphone.CanRender(firstFrame, microphone.Length) || !_system.CanRender(firstFrame, system.Length)) return false;
+            _microphone.Render(firstFrame, microphone);
+            _system.Render(firstFrame, system);
+            return true;
+        }
+    }
+
+    public SynchronizerStatistics Statistics
+    {
+        get
+        {
+            lock (_gate) return new(_microphone.Missing, _system.Missing, _microphone.Count, _system.Count,
+                (_microphone.Rate / SampleRate - 1) * 1e6, (_system.Rate / SampleRate - 1) * 1e6,
+                _microphone.Future, _system.Future, _microphone.Expired, _system.Expired);
+        }
+    }
+
+    public static void Mix(ReadOnlySpan<float> microphone, ReadOnlySpan<float> system, Span<float> mix)
+    {
+        if (microphone.Length != system.Length || mix.Length != microphone.Length) throw new ArgumentException("Размеры каналов различаются.");
+        for (int i = 0; i < mix.Length; i++)
+        {
+            double sum = microphone[i] + system[i];
+            // Мягкое колено: тихий сигнал не меняется; сумма не обрезается плоским потолком.
+            double magnitude = Math.Abs(sum);
+            mix[i] = (float)(magnitude <= .8 ? sum : Math.CopySign(.8 + .2 * Math.Tanh((magnitude - .8) / .2), sum));
+        }
+    }
+
+    private sealed class ClockedBuffer
+    {
+        private readonly float[] _samples = new float[SampleRate * 2];
+        private readonly (double Time, double Frame)[] _anchors = new (double, double)[64];
+        private int _anchorNext, _anchorCount;
+        private double _lastAnchorTime = double.NegativeInfinity, _offset;
+        private double _position = double.NaN;
+        private long _nextOutputFrame = -1;
+        internal long Count, Missing, Future, Expired;
+        internal double Rate = SampleRate;
+
+        internal void Push(double firstSeconds, ReadOnlySpan<float> samples)
+        {
+            long first = Count;
+            for (int i = 0; i < samples.Length; i++)
+                _samples[(first + i) % _samples.Length] = float.IsFinite(samples[i]) ? samples[i] : 0;
+            Count += samples.Length;
+            if (samples.IsEmpty || firstSeconds - _lastAnchorTime < .25) return;
+            _lastAnchorTime = firstSeconds;
+            _anchors[_anchorNext] = (firstSeconds, first);
+            _anchorNext = (_anchorNext + 1) % _anchors.Length;
+            _anchorCount = Math.Min(_anchorCount + 1, _anchors.Length);
+            double time = 0, frame = 0;
+            for (int i = 0; i < _anchorCount; i++) { time += _anchors[i].Time; frame += _anchors[i].Frame; }
+            time /= _anchorCount; frame /= _anchorCount;
+            double xx = 0, xy = 0;
+            for (int i = 0; i < _anchorCount; i++)
+            {
+                double dt = _anchors[i].Time - time;
+                xx += dt * dt; xy += dt * (_anchors[i].Frame - frame);
+            }
+            // На короткой базе джиттер слишком велик для оценки частоты.
+            Rate = xx > 1 ? Math.Clamp(xy / xx, SampleRate * .99, SampleRate * 1.01) : SampleRate;
+            _offset = frame - Rate * time;
+        }
+
+        internal void Render(long firstFrame, Span<float> output)
+        {
+            if (_anchorCount == 0) { output.Clear(); Missing += output.Length; return; }
+            double desired = _offset + Rate * firstFrame / SampleRate;
+            if (_nextOutputFrame != firstFrame || double.IsNaN(_position)) _position = desired;
+            double step = Rate / SampleRate + Math.Clamp((desired - _position) / (SampleRate * .5), -.005, .005);
+            long oldest = Math.Max(0, Count - _samples.Length);
+            for (int i = 0; i < output.Length; i++, _position += step)
+            {
+                long a = (long)Math.Floor(_position);
+                if (a < oldest) { output[i] = 0; Missing++; Expired++; continue; }
+                if (a + 1 >= Count) { output[i] = 0; Missing++; Future++; continue; }
+                float left = _samples[a % _samples.Length], right = _samples[(a + 1) % _samples.Length];
+                output[i] = left + (right - left) * (float)(_position - a);
+            }
+            _nextOutputFrame = firstFrame + output.Length;
+        }
+
+        internal bool CanRender(long firstFrame, int count)
+        {
+            if (count == 0) return true;
+            if (_anchorCount == 0) return false;
+            double desired = _offset + Rate * firstFrame / SampleRate;
+            double position = _nextOutputFrame != firstFrame || double.IsNaN(_position) ? desired : _position;
+            double step = Rate / SampleRate + Math.Clamp((desired - position) / (SampleRate * .5), -.005, .005);
+            return Math.Floor(position + step * (count - 1)) + 1 < Count;
+        }
+    }
+}

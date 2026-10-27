@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/shared/" />
+  <Folder Name="/shared/src/">
+    <Project Path="shared/src/EliteRec.Core/EliteRec.Core.csproj" />
+    <Project Path="shared/src/EliteRec.Encoding/EliteRec.Encoding.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/EliteRec.App/EliteRec.App.csproj" />
+    <Project Path="src/EliteRec.Audio.Pulse/EliteRec.Audio.Pulse.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/EliteRec.App.Tests/EliteRec.App.Tests.csproj" />
+    <Project Path="tests/EliteRec.Audio.Pulse.Tests/EliteRec.Audio.Pulse.Tests.csproj" />
+    <Project Path="tests/EliteRec.Core.Tests/EliteRec.Core.Tests.csproj" />
+    <Project Path="tests/EliteRec.Probe.Tests/EliteRec.Probe.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/EliteRec.Probe/EliteRec.Probe.csproj" />
+    <Project Path="tools/EliteRec.Recorder/EliteRec.Recorder.csproj" />
+  </Folder>
+</Solution>

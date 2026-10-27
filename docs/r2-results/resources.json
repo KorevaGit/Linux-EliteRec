@@ -1,0 +1,25 @@
+{
+  "measurement": "ps: average CPU in percent of one core, RSS in KiB; console recording process, not GUI",
+  "samples": [
+    {
+      "elapsed": "02:57",
+      "cpu_percent": 5.1,
+      "rss_kib": 16728
+    },
+    {
+      "elapsed": "19:45",
+      "cpu_percent": 4.6,
+      "rss_kib": 25304
+    },
+    {
+      "elapsed": "40:21",
+      "cpu_percent": 4.1,
+      "rss_kib": 28800
+    },
+    {
+      "elapsed": "57:32",
+      "cpu_percent": 4.0,
+      "rss_kib": 28800
+    }
+  ]
+}

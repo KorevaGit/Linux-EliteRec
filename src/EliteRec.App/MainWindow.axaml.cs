@@ -1,0 +1,155 @@
+using System.Text.Json;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+using Avalonia.Threading;
+using EliteRec.App.Resources;
+using EliteRec.Audio.Pulse;
+using EliteRec.Core.Audio;
+using EliteRec.Core.Recording;
+using EliteRec.Core.Settings;
+using EliteRec.Encoding;
+
+namespace EliteRec.App;
+
+public partial class MainWindow : Window
+{
+    private PulseDeviceWatch? _watch;
+    private IRecordingSession? _session;
+    private CancellationTokenSource? _previewCancellation;
+    private readonly SemaphoreSlim _previewGate = new(1, 1);
+    private readonly DispatcherTimer _meterTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
+    private AudioDeviceSnapshot _devices = AudioDeviceSnapshot.Unavailable("");
+    private (string? Mic, string? System) _route;
+    private int _generation;
+    private bool _closing, _allowClose, _busy;
+    private MainPanelModel Model => (MainPanelModel)DataContext!;
+
+    public MainWindow() : this(CreateModel())
+    {
+        Model.SelectionChanged += () => _ = RefreshPreviewAsync();
+        _watch = new PulseDeviceWatch((snapshot, changes) => Dispatcher.UIThread.Post(() =>
+        {
+            if (_closing) return;
+            _devices = snapshot;
+            // Подписи активных источников не меняем вслед за новым default до R4.
+            if (!Model.IsRecording) Model.Apply(snapshot);
+            _ = RefreshPreviewAsync();
+        }), ex => Console.Error.WriteLine(ex.Message));
+        _meterTimer.Tick += (_, _) =>
+        {
+            if (!_closing && _session is not null) Model.UpdateRecording(_session.Snapshot, _busy);
+        };
+        _meterTimer.Start();
+        Closing += OnClosing;
+    }
+
+    internal MainWindow(MainPanelModel model)
+    {
+        InitializeComponent();
+        DataContext = model;
+    }
+
+    private async Task RefreshPreviewAsync()
+    {
+        if (_closing || Model.IsRecording || _busy) return;
+        var microphone = _devices.Resolve(AudioDeviceDirection.Capture, Model.Preferences.MicrophoneId);
+        var output = _devices.Resolve(AudioDeviceDirection.Render, Model.Preferences.OutputId);
+        var route = (microphone?.Id, output?.CaptureSourceId);
+        if (_session?.Snapshot.State == RecordingState.Preview && _route == route) return;
+        int generation = ++_generation;
+        _previewCancellation?.Cancel();
+        var cancellation = new CancellationTokenSource();
+        _previewCancellation = cancellation;
+        await _previewGate.WaitAsync();
+        try
+        {
+            if (_closing || generation != _generation) return;
+            if (_session is not null) { await _session.DisposeAsync(); _session = null; }
+            _route = default;
+            Model.UpdateRecording(null, busy: true);
+            if (microphone is null || output?.CaptureSourceId is null) return;
+            var session = await PulseRecordingSession.OpenAsync(microphone.Id, output.CaptureSourceId, cancellation.Token);
+            if (_closing || generation != _generation) { await session.DisposeAsync(); return; }
+            _session = session; _route = route;
+            Model.SetCommandError(null);
+            Model.UpdateRecording(session.Snapshot);
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or TimeoutException or DllNotFoundException)
+        {
+            if (!_closing && generation == _generation) ShowError(ex.Message);
+        }
+        finally
+        {
+            if (ReferenceEquals(_previewCancellation, cancellation)) _previewCancellation = null;
+            cancellation.Dispose(); _previewGate.Release();
+            if (!_closing && generation == _generation && _session is null) Model.UpdateRecording(null);
+        }
+    }
+
+    private async void OnStartRecording(object? sender, RoutedEventArgs e) => await RunCommandAsync(async session =>
+    {
+        string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
+        if (string.IsNullOrEmpty(desktop)) desktop = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop");
+        string folder = Path.Combine(desktop, Text.Get("RecordingsFolder"));
+        string name = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + Guid.NewGuid().ToString("N")[..6];
+        await session.StartRecordingAsync(() => new WavRecordingSink(Path.Combine(folder, name)));
+    });
+
+    private async void OnPauseRecording(object? sender, RoutedEventArgs e) => await RunCommandAsync(session =>
+        session.Snapshot.State == RecordingState.Paused ? session.ResumeAsync() : session.PauseAsync());
+
+    private async void OnStopRecording(object? sender, RoutedEventArgs e)
+    {
+        await RunCommandAsync(session => session.StopRecordingAsync());
+        if (!_closing) { Model.Apply(_devices); await RefreshPreviewAsync(); }
+    }
+
+    private async Task RunCommandAsync(Func<IRecordingSession, Task> command)
+    {
+        if (_closing || _busy || _session is null) return;
+        _busy = true;
+        Model.SetCommandError(null);
+        Model.UpdateRecording(_session.Snapshot, busy: true);
+        try { await command(_session); }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
+        { ShowError(ex.Message); }
+        finally
+        {
+            _busy = false;
+            if (!_closing && _session is not null) Model.UpdateRecording(_session.Snapshot);
+        }
+    }
+
+    private void ShowError(string message) => Model.SetCommandError(message);
+
+    private async void OnClosing(object? sender, WindowClosingEventArgs e)
+    {
+        if (_allowClose) return;
+        e.Cancel = true;
+        if (_closing) return;
+        _closing = true; _meterTimer.Stop(); _previewCancellation?.Cancel();
+        await _previewGate.WaitAsync();
+        try
+        {
+            try { if (_session is not null) await _session.DisposeAsync(); }
+            finally { if (_watch is not null) await _watch.DisposeAsync(); }
+        }
+        catch (Exception ex) { Console.Error.WriteLine(ex.Message); }
+        finally { _previewGate.Release(); _allowClose = true; Close(); }
+    }
+
+    private static MainPanelModel CreateModel()
+    {
+        string basePath = Environment.GetEnvironmentVariable("XDG_CONFIG_HOME") is { Length: > 0 } config && Path.IsPathRooted(config)
+            ? config : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".config");
+        var store = new DevicePreferencesStore(Path.Combine(basePath, "EliteRec", "devices.json"));
+        DevicePreferences preferences = new();
+        string? error = null;
+        bool canSave = true;
+        try { preferences = store.Load(); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
+        { error = Text.Get("SettingsReadFailed"); canSave = false; }
+        return new MainPanelModel(preferences, value => { if (canSave) store.Save(value); }, error);
+    }
+}

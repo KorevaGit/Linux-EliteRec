@@ -1,0 +1,23 @@
+{
+  "StartedUtc": "2026-10-27T06:50:10.9786337+00:00",
+  "AudioSeconds": 120,
+  "WallSeconds": 2.5730016,
+  "CpuSeconds": 2.56468,
+  "OneCoreRealtimePercent": 2.1372333333333335,
+  "RealtimeSpeed": 46.63813656392596,
+  "PeakWorkingSetBytes": 41984000,
+  "Mix": {
+    "Frames": 5001,
+    "SampleRate": 48000,
+    "BitrateKbps": 128,
+    "Mode": "MONO",
+    "Bytes": 1920384
+  },
+  "SeparateChannels": {
+    "Frames": 5001,
+    "SampleRate": 48000,
+    "BitrateKbps": 192,
+    "Mode": "STEREO",
+    "Bytes": 2880576
+  }
+}
