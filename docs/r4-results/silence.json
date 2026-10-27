@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-27",
+  "machine": "машина разработки, Linux Mint / PipeWire, виртуальные null-sink",
+  "command": "python3 scripts/r4-device-smoke.py --mode silence --seconds 16 --unplug-at 4 --replug-at 11",
+  "scenario": "гарнитура остаётся в системе, но присылает ровные нули (как выключенная JBL Quantum 350 с приёмником в USB)",
+  "seconds": 16.0,
+  "missing_frames": [0, 0],
+  "gap_ms": 512,
+  "left_hz": {"before": 440, "silent": 880, "returned": 442},
+  "events": [
+    "00:00:07  Микрофон: …_spare.monitor (выбранное устройство молчит — выключено?)",
+    "00:00:10  Микрофон: …_headset.monitor"
+  ]
+}

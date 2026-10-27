@@ -42,4 +42,7 @@
   <data name="SystemNote" xml:space="preserve"><value>Звук системы: {0}</value></data>
   <data name="FallbackNote" xml:space="preserve"><value>(выбранное устройство отключено)</value></data>
   <data name="NoSource" xml:space="preserve"><value>нет источника, пишется тишина</value></data>
+  <data name="HeadsetSilent" xml:space="preserve"><value>Гарнитура молчит (выключена?), пишем с системного микрофона</value></data>
+  <data name="HeadsetSilentAlone" xml:space="preserve"><value>Микрофон молчит (гарнитура выключена?) — включите её</value></data>
+  <data name="SilentNote" xml:space="preserve"><value>(выбранное устройство молчит — выключено?)</value></data>
 </root>

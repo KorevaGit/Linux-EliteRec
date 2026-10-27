@@ -5,9 +5,11 @@ public enum RecordingState { Preview, Recording, Paused, Faulted, Closed }
 public sealed record RecordingFiles(string MixPath, string StereoPath);
 public sealed record CaptureStatistics(long Holes, long Overflows, long UntimedFrames);
 /// <param name="MicrophoneSource">Текущий source канала; null — источника нет, канал пишется тишиной.</param>
+/// <param name="MicrophoneSilenceSeconds">Сколько секунд источник присылает ровно нули (цифровая тишина).</param>
 public sealed record RecordingSnapshot(RecordingState State, long RecordedFrames, float MicrophonePeak,
     float SystemPeak, SynchronizerStatistics Synchronization, string? Error = null, RecordingFiles? Files = null,
-    CaptureStatistics? Capture = null, string? MicrophoneSource = null, string? SystemSource = null)
+    CaptureStatistics? Capture = null, string? MicrophoneSource = null, string? SystemSource = null,
+    double MicrophoneSilenceSeconds = 0, double SystemSilenceSeconds = 0)
 {
     public TimeSpan Duration => TimeSpan.FromSeconds(RecordedFrames / (double)SynchronizedAudioMixer.SampleRate);
 }
@@ -30,7 +32,9 @@ public interface IRecordingSession : IAsyncDisposable
     Task StopRecordingAsync();
     /// <summary>
     /// Заменяет источник канала на ходу (null — источника нет, тишина). Во время записи
-    /// <paramref name="note"/> попадает в отметки на текущей позиции.
+    /// <paramref name="note"/> попадает в отметки на текущей позиции. С <paramref name="requireSound"/>
+    /// новый источник принимается, только если прислал не цифровую тишину; иначе возвращает false
+    /// и старый источник продолжает писать.
     /// </summary>
-    Task SwitchSourceAsync(AudioChannel channel, string? source, string note);
+    Task<bool> SwitchSourceAsync(AudioChannel channel, string? source, string note, bool requireSound = false);
 }

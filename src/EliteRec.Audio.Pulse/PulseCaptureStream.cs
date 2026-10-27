@@ -19,7 +19,7 @@ internal sealed unsafe class PulseCaptureStream : IDisposable
     private long _timedFrames;
     private long _holes, _overflows, _untimed;
     private string? _failure;
-    private double _lastArrival;
+    private double _lastArrival, _lastSound, _opened;
     private volatile bool _active;
     /// <summary>Отдавать ли данные в микшер. Новый источник открывается немым и включается при подмене.</summary>
     internal bool Active { get => _active; set => _active = value; }
@@ -29,12 +29,18 @@ internal sealed unsafe class PulseCaptureStream : IDisposable
     internal long Overflows => Volatile.Read(ref _overflows);
     internal long UntimedFrames => Volatile.Read(ref _untimed);
     internal double ArrivalAge => _clock.Elapsed.TotalSeconds - Volatile.Read(ref _lastArrival);
+    /// <summary>
+    /// Сколько секунд источник присылает ровно нули. Живой микрофон даже в тишине даёт шум;
+    /// нули — выключенная беспроводная гарнитура при оставленном в USB приёмнике.
+    /// </summary>
+    internal double SilenceAge => _clock.Elapsed.TotalSeconds - Volatile.Read(ref _lastSound);
+    internal bool HeardSound => Volatile.Read(ref _lastSound) > _opened;
 
     private PulseCaptureStream(PulseConnection connection, Stopwatch clock, SynchronizedAudioMixer mixer, AudioChannel channel)
     {
         _connection = connection; _clock = clock; _mixer = mixer; _channel = channel;
         // «Данных нет N секунд» считается от открытия, иначе новый источник сразу выглядит умершим.
-        _lastArrival = clock.Elapsed.TotalSeconds;
+        _lastArrival = _lastSound = _opened = clock.Elapsed.TotalSeconds;
     }
 
     internal static PulseCaptureStream Open(PulseConnection connection, Stopwatch clock, SynchronizedAudioMixer mixer,
@@ -119,6 +125,8 @@ internal sealed unsafe class PulseCaptureStream : IDisposable
                 if (bytes == 0) return;
                 Volatile.Write(ref self._lastArrival, self._clock.Elapsed.TotalSeconds);
                 int count = checked((int)(bytes / sizeof(float)));
+                if (data is not null && new ReadOnlySpan<float>(data, count).ContainsAnyExcept(0f))
+                    Volatile.Write(ref self._lastSound, self._clock.Elapsed.TotalSeconds);
                 if (!self._active)
                 {
                     if (LibPulse.StreamDrop(stream) < 0) throw new InvalidOperationException("Ошибка освобождения аудиоблока.");

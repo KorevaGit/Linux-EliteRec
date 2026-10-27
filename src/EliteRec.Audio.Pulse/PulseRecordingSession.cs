@@ -77,26 +77,34 @@ public sealed class PulseRecordingSession : IRecordingSession
         _state = RecordingState.Preview; sink!.Dispose();
     }, endsSegment: true);
 
-    public async Task SwitchSourceAsync(AudioChannel channel, string? source, string note)
+    public async Task<bool> SwitchSourceAsync(AudioChannel channel, string? source, string note, bool requireSound = false)
     {
         await _switching.WaitAsync().ConfigureAwait(false);
         try
         {
             if (!_running) throw new InvalidOperationException(_failure ?? "Аудиосессия закрыта.");
-            await Task.Run(() =>
+            bool switched = await Task.Run(() =>
             {
                 // Сначала открываем новый (немым): не открылся — старый источник продолжает писать.
                 var stream = source is null ? null
                     : PulseCaptureStream.Open(_connection, _clock, _mixer, channel, source, _stop.Token, active: false);
+                if (stream is not null && requireSound)
+                {
+                    // Проба: гарнитура включена, если за 1,5 с прислала хоть что-то кроме нулей.
+                    for (int i = 0; i < 150 && !stream.HeardSound && !_stop.IsCancellationRequested; i++) Thread.Sleep(10);
+                    if (!stream.HeardSound) { stream.Dispose(); return false; }
+                }
                 Detach(channel);
-                if (stream is null) return;
+                if (stream is null) return true;
                 lock (_streams)
                 {
                     if (channel == AudioChannel.Microphone) { _microphone = stream; _microphoneSource = source; }
                     else { _system = stream; _systemSource = source; }
                 }
                 stream.Active = true;
+                return true;
             }).ConfigureAwait(false);
+            if (!switched) return false;
         }
         finally
         {
@@ -105,6 +113,7 @@ public sealed class PulseRecordingSession : IRecordingSession
         }
         // Отметка — только об удавшемся переключении, на позиции таймлайна записи.
         await Enqueue(() => _sink?.Mark(Position, note)).ConfigureAwait(false);
+        return true;
     }
 
     private TimeSpan Position => TimeSpan.FromSeconds(_recorded / (double)SynchronizedAudioMixer.SampleRate);
@@ -233,7 +242,12 @@ public sealed class PulseRecordingSession : IRecordingSession
 
     private void Publish(float microphone, float system) => Volatile.Write(ref _snapshot,
         new(_state, _recorded, microphone, system, _mixer.Statistics, _failure, _files,
-            Capture(), _microphoneSource, _systemSource));
+            Capture(), _microphoneSource, _systemSource, Silence(AudioChannel.Microphone), Silence(AudioChannel.System)));
+
+    private double Silence(AudioChannel channel)
+    {
+        lock (_streams) return (channel == AudioChannel.Microphone ? _microphone : _system)?.SilenceAge ?? 0;
+    }
 
     // Счётчики текущих потоков; после переключения начинаются заново.
     private CaptureStatistics Capture()

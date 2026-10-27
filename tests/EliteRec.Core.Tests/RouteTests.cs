@@ -37,6 +37,22 @@ public class RouteTests
     }
 
     [Fact]
+    public void SilentHeadsetIsBypassedLikeUnpluggedOne()
+    {
+        var route = RecordingRoute.For(Desk(true), "jabra-mic", null, silentMicrophone: "jabra-mic");
+        Assert.Equal(new RecordingRoute("builtin-mic", "speakers.monitor", MicrophoneSilent: true), route);
+        // «Системный», и умолчание — та же молчащая гарнитура: берём другой микрофон.
+        var systemChoice = RecordingRoute.For(Desk(true, "jabra-mic"), null, null, silentMicrophone: "jabra-mic");
+        Assert.Equal("builtin-mic", systemChoice.MicrophoneSource);
+        Assert.True(systemChoice.MicrophoneSilent);
+        // Других микрофонов нет — пишем молчащий, но предупреждаем.
+        var only = new AudioDeviceSnapshot([new("jabra-mic", "Jabra", AudioDeviceDirection.Capture)], [], "jabra-mic", null);
+        Assert.Equal(new RecordingRoute("jabra-mic", null, MicrophoneSilent: true), RecordingRoute.For(only, "jabra-mic", null, "jabra-mic"));
+        // Молчит не выбранный, а другой — ничего не меняется.
+        Assert.Equal(new RecordingRoute("jabra-mic", "speakers.monitor"), RecordingRoute.For(Desk(true), "jabra-mic", null, "builtin-mic"));
+    }
+
+    [Fact]
     public void NothingAvailableMeansSilenceNotCrash()
     {
         var empty = new AudioDeviceSnapshot([], [], null, null);

@@ -50,9 +50,15 @@ try
                 await File.WriteAllTextAsync(path + ".json", JsonSerializer.Serialize(session.Snapshot, new JsonSerializerOptions { WriteIndented = true }));
                 throw new InvalidOperationException(session.Snapshot.Error);
             }
-            // Как окно в R4: пропал микрофон — запасной источник; раз в секунду пробуем вернуть исходный.
+            // Как окно в R4: пропал или молчит (ровно нули > 3 с) микрофон — запасной источник;
+            // раз в секунду пробуем вернуть исходный, только если он зазвучал.
             var current = session.Snapshot;
-            if (current.MicrophoneSource is null)
+            if (fallback is not null && current.MicrophoneSource == microphone && current.MicrophoneSilenceSeconds > 3)
+            {
+                await session.SwitchSourceAsync(AudioChannel.Microphone, fallback, "Микрофон: " + fallback + " (выбранное устройство молчит — выключено?)");
+                nextReturn = clock.Elapsed.TotalSeconds + 1;
+            }
+            else if (current.MicrophoneSource is null)
             {
                 if (fallback is null) throw new InvalidOperationException("Источник звука отключён: Microphone");
                 await session.SwitchSourceAsync(AudioChannel.Microphone, fallback, "Микрофон: " + fallback + " (выбранное устройство отключено)");
@@ -62,7 +68,7 @@ try
             {
                 nextReturn = clock.Elapsed.TotalSeconds + 1;
                 // Не открылся — запасной продолжает писать (новый поток открывается до закрытия старого).
-                try { await session.SwitchSourceAsync(AudioChannel.Microphone, microphone, "Микрофон: " + microphone); }
+                try { await session.SwitchSourceAsync(AudioChannel.Microphone, microphone, "Микрофон: " + microphone, requireSound: true); }
                 catch (Exception ex) when (ex is InvalidOperationException or TimeoutException) { }
             }
             if (current.SystemSource is null) throw new InvalidOperationException("Источник звука отключён: System");

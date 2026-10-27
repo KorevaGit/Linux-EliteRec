@@ -113,21 +113,24 @@ public sealed class MainPanelModel : INotifyPropertyChanged
     }
 
     private RecordingRoute? _route;
-    private string? _routeError;
+    private string? _routeError, _silentAlone;
 
     /// <summary>Предупреждение об устройстве: пишем не с выбранного или канал без источника.</summary>
     public string? DeviceWarning => _routeError is { } error ? Text.Get("SwitchFailed") + " " + error
         : _route is not { } r ? null
         : r.MicrophoneSource is null ? Text.Get("MicrophoneSilent")
+        : r.MicrophoneSilent ? Text.Get(r.MicrophoneSource == _silentAlone ? "HeadsetSilentAlone" : "HeadsetSilent")
         : r.SystemSource is null ? Text.Get("SystemSilent")
         : r.MicrophoneFallback ? Text.Get("MicrophoneFallback")
         : r.SystemFallback ? Text.Get("SystemFallback") : null;
     public bool HasDeviceWarning => DeviceWarning is not null;
 
-    public void SetRoute(RecordingRoute route, string? error = null)
+    /// <param name="silentSource">Молчащий микрофон; если маршрут остался на нём — заменить нечем.</param>
+    public void SetRoute(RecordingRoute route, string? error = null, string? silentSource = null)
     {
-        if (route == _route && error == _routeError) return;
-        _route = route; _routeError = error;
+        string? alone = route.MicrophoneSilent && route.MicrophoneSource == silentSource ? silentSource : null;
+        if (route == _route && error == _routeError && alone == _silentAlone) return;
+        _route = route; _routeError = error; _silentAlone = alone;
         foreach (string property in new[] { nameof(DeviceWarning), nameof(HasDeviceWarning), nameof(RecordingHint) })
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
     }

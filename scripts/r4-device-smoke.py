@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""R4: «выдернули гарнитуру» посреди записи и вернули её.
+"""R4: «выдернули гарнитуру» (или выключили её) посреди записи и вернули.
 
 Три виртуальных null-sink: гарнитура (440 Гц), запасной микрофон (880 Гц), система (660 Гц).
 Recorder пишет WAV, микрофон — монитор гарнитуры, запасной — `--fallback-source`.
 На --unplug-at секунде модуль гарнитуры выгружается, на --replug-at — загружается снова.
+--mode silence: устройство остаётся, но тон останавливается — монитор null-sink даёт ровные
+нули, как выключенная беспроводная гарнитура с приёмником в USB. Переход — через 3 с тишины.
 Проверяем: запись не остановилась и длится сколько задано, потерь нет, левый канал
 звучит 440 → 880 → 440 Гц, правый всё время 660 Гц, в файле событий — пропажа,
 переход на запасной и возврат.
@@ -62,6 +64,7 @@ def main():
     parser.add_argument("--seconds", type=int, default=14)
     parser.add_argument("--unplug-at", type=float, default=4)
     parser.add_argument("--replug-at", type=float, default=8)
+    parser.add_argument("--mode", choices=["unplug", "silence"], default="unplug")
     options = parser.parse_args()
     directory = ROOT / "artifacts/r4" / time.strftime("%Y%m%d-%H%M%S")
     directory.mkdir(parents=True)
@@ -84,9 +87,9 @@ def main():
             started = time.monotonic() + .75  # прогрев Recorder до начала записи
             time.sleep(max(0, started + options.unplug_at - time.monotonic()))
             tones[headset].stop()
-            pactl("unload-module", modules.pop(headset))
+            if options.mode == "unplug": pactl("unload-module", modules.pop(headset))
             time.sleep(max(0, started + options.replug_at - time.monotonic()))
-            modules[headset] = load(headset)
+            if options.mode == "unplug": modules[headset] = load(headset)
             tones[headset] = Tone(headset, 440)
             assert recorder.wait(timeout=options.seconds + 30) == 0, (directory / "recorder.log").read_text()
 
@@ -106,7 +109,7 @@ def main():
 
         def left_at(t):
             return min(windows, key=lambda w: abs(w[0] - t))[1]
-        report = {"seconds": round(seconds, 2), "events": events,
+        report = {"mode": options.mode, "seconds": round(seconds, 2), "events": events,
                   "missing": [stats["MissingMicrophoneFrames"], stats["MissingSystemFrames"]],
                   "gap_ms": round(stats.get("GapMicrophoneFrames", 0) / 48), "left_hz": {
                       "before": left_at(options.unplug_at / 2),
@@ -119,6 +122,9 @@ def main():
         assert report["missing"] == [0, 0], "потери данных"
         assert abs(report["left_hz"]["before"] - 440) < 20
         assert abs(report["left_hz"]["unplugged"] - 880) < 20, "не переключились на запасной"
+        if options.mode == "silence":
+            assert len(events) == 2 and "молчит" in events[0] and headset in events[1], events
+            return 0
         assert abs(report["left_hz"]["returned"] - 440) < 20, "не вернулись на гарнитуру"
         assert all(abs(hz - 660) < 20 for hz in report["right_hz_range"]), "правый канал пострадал"
         assert len(events) == 3 and "пропал" in events[0] and "отключено" in events[1] and headset in events[2], events

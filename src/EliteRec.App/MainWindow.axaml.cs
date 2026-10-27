@@ -23,7 +23,9 @@ public partial class MainWindow : Window
     private (string? Mic, string? System) _route;
     private int _generation;
     private bool _closing, _allowClose, _busy, _followingDevices;
-    private DateTime _followRetry;
+    private DateTime _followRetry, _silentProbe;
+    private string? _silentMicrophone;
+    private const double SilenceLimit = 3;
     private MainPanelModel Model => (MainPanelModel)DataContext!;
 
     public MainWindow() : this(CreateModel())
@@ -95,41 +97,57 @@ public partial class MainWindow : Window
     /// <summary>
     /// Во время записи держит источники в согласии с правилами <see cref="RecordingRoute"/>:
     /// пропало выбранное — системное, вернулось — снова оно, «Системный» следует за умолчанием.
+    /// Выбранный микрофон, присылающий ровно нули дольше <see cref="SilenceLimit"/> (гарнитура
+    /// выключена, приёмник в USB), обходится так же; раз в 2 с проба вернуться — только если он зазвучал.
     /// </summary>
     private async Task FollowDevicesAsync()
     {
         if (_closing || _followingDevices || !Model.IsRecording || _session is not { } session || DateTime.UtcNow < _followRetry) return;
-        var desired = RecordingRoute.For(_devices, Model.Preferences.MicrophoneId, Model.Preferences.OutputId);
         var current = session.Snapshot;
-        if (current.MicrophoneSource == desired.MicrophoneSource && current.SystemSource == desired.SystemSource)
-        { Model.SetRoute(desired); return; }
+        var preferred = RecordingRoute.For(_devices, Model.Preferences.MicrophoneId, Model.Preferences.OutputId);
+        if (_silentMicrophone is null && current.MicrophoneSource is { } source && source == preferred.MicrophoneSource
+            && current.MicrophoneSilenceSeconds > SilenceLimit)
+            _silentMicrophone = source;
+        else if (_silentMicrophone is { } silent && (preferred.MicrophoneSource != silent
+            || (current.MicrophoneSource == silent && current.MicrophoneSilenceSeconds < 1)))
+            _silentMicrophone = null; // выбор сменился, устройство пропало или снова звучит
         _followingDevices = true;
         try
         {
+            if (_silentMicrophone is { } probe && current.MicrophoneSource != probe && DateTime.UtcNow >= _silentProbe)
+            {
+                _silentProbe = DateTime.UtcNow.AddSeconds(2);
+                if (await session.SwitchSourceAsync(AudioChannel.Microphone, probe,
+                        Note("MicrophoneNote", DeviceName(_devices.Inputs.FirstOrDefault(d => d.Id == probe)), false), requireSound: true))
+                { _silentMicrophone = null; current = session.Snapshot; }
+            }
+            var desired = RecordingRoute.For(_devices, Model.Preferences.MicrophoneId, Model.Preferences.OutputId, _silentMicrophone);
             if (current.MicrophoneSource != desired.MicrophoneSource)
                 await session.SwitchSourceAsync(AudioChannel.Microphone, desired.MicrophoneSource,
-                    Note("MicrophoneNote", DeviceName(_devices.Inputs.FirstOrDefault(d => d.Id == desired.MicrophoneSource)), desired.MicrophoneFallback));
+                    Note("MicrophoneNote", DeviceName(_devices.Inputs.FirstOrDefault(d => d.Id == desired.MicrophoneSource)),
+                        desired.MicrophoneFallback, desired.MicrophoneSilent));
             if (current.SystemSource != desired.SystemSource)
                 await session.SwitchSourceAsync(AudioChannel.System, desired.SystemSource,
                     Note("SystemNote", DeviceName(_devices.Outputs.FirstOrDefault(d => d.CaptureSourceId == desired.SystemSource)), desired.SystemFallback));
-            Model.SetRoute(desired);
+            Model.SetRoute(desired, silentSource: _silentMicrophone);
         }
         catch (Exception ex) when (ex is InvalidOperationException or IOException or TimeoutException)
         {
             _followRetry = DateTime.UtcNow.AddSeconds(2);
-            Model.SetRoute(desired, ex.Message);
+            Model.SetRoute(RecordingRoute.For(_devices, Model.Preferences.MicrophoneId, Model.Preferences.OutputId, _silentMicrophone), ex.Message, _silentMicrophone);
         }
         finally { _followingDevices = false; }
     }
 
     private static string? DeviceName(AudioDevice? device) => device?.DisplayName;
 
-    private static string Note(string key, string? device, bool fallback) =>
+    private static string Note(string key, string? device, bool fallback, bool silent = false) =>
         string.Format(CultureInfo.CurrentCulture, Text.Get(key), device ?? Text.Get("NoSource"))
-        + (fallback ? " " + Text.Get("FallbackNote") : "");
+        + (fallback ? " " + Text.Get("FallbackNote") : silent ? " " + Text.Get("SilentNote") : "");
 
     private async void OnStartRecording(object? sender, RoutedEventArgs e) => await RunCommandAsync(async session =>
     {
+        _silentMicrophone = null;
         string name = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + Guid.NewGuid().ToString("N")[..6];
         var format = Model.Format;
         await session.StartRecordingAsync(() => new RecordingSink(Path.Combine(RecordingsFolder(), name), format));

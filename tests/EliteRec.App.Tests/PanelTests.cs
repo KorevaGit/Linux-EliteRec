@@ -141,6 +141,10 @@ public class PanelTests
         Assert.Contains("предупредите клиента", model.RecordingHint);
         model.SetRoute(new("jabra-mic", null));
         Assert.Contains("«Система» пишется тишиной", model.RecordingHint);
+        model.SetRoute(new("builtin-mic", "speakers.monitor", MicrophoneSilent: true), silentSource: "jabra-mic");
+        Assert.Equal("Гарнитура молчит (выключена?), пишем с системного микрофона", model.RecordingHint);
+        model.SetRoute(new("jabra-mic", "speakers.monitor", MicrophoneSilent: true), silentSource: "jabra-mic");
+        Assert.Contains("включите её", model.RecordingHint);
     }
 
     [Fact]
