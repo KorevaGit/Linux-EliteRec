@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -21,7 +22,8 @@ public partial class MainWindow : Window
     private AudioDeviceSnapshot _devices = AudioDeviceSnapshot.Unavailable("");
     private (string? Mic, string? System) _route;
     private int _generation;
-    private bool _closing, _allowClose, _busy;
+    private bool _closing, _allowClose, _busy, _followingDevices;
+    private DateTime _followRetry;
     private MainPanelModel Model => (MainPanelModel)DataContext!;
 
     public MainWindow() : this(CreateModel())
@@ -31,13 +33,15 @@ public partial class MainWindow : Window
         {
             if (_closing) return;
             _devices = snapshot;
-            // Подписи активных источников не меняем вслед за новым default до R4.
-            if (!Model.IsRecording) Model.Apply(snapshot);
+            Model.Apply(snapshot);
             _ = RefreshPreviewAsync();
+            _ = FollowDevicesAsync();
         }), ex => Console.Error.WriteLine(ex.Message));
         _meterTimer.Tick += (_, _) =>
         {
-            if (!_closing && _session is not null) Model.UpdateRecording(_session.Snapshot, _busy);
+            if (_closing || _session is null) return;
+            Model.UpdateRecording(_session.Snapshot, _busy);
+            _ = FollowDevicesAsync(); // поток мог умереть и без события об устройстве
         };
         _meterTimer.Start();
         Closing += OnClosing;
@@ -53,9 +57,8 @@ public partial class MainWindow : Window
     private async Task RefreshPreviewAsync()
     {
         if (_closing || Model.IsRecording || _busy) return;
-        var microphone = _devices.Resolve(AudioDeviceDirection.Capture, Model.Preferences.MicrophoneId);
-        var output = _devices.Resolve(AudioDeviceDirection.Render, Model.Preferences.OutputId);
-        var route = (microphone?.Id, output?.CaptureSourceId);
+        var desired = RecordingRoute.For(_devices, Model.Preferences.MicrophoneId, Model.Preferences.OutputId);
+        var route = (desired.MicrophoneSource, desired.SystemSource);
         if (_session?.Snapshot.State == RecordingState.Preview && _route == route) return;
         int generation = ++_generation;
         _previewCancellation?.Cancel();
@@ -68,8 +71,9 @@ public partial class MainWindow : Window
             if (_session is not null) { await _session.DisposeAsync(); _session = null; }
             _route = default;
             Model.UpdateRecording(null, busy: true);
-            if (microphone is null || output?.CaptureSourceId is null) return;
-            var session = await PulseRecordingSession.OpenAsync(microphone.Id, output.CaptureSourceId, cancellation.Token);
+            Model.SetRoute(desired);
+            if (desired.MicrophoneSource is not { } microphone || desired.SystemSource is not { } system) return;
+            var session = await PulseRecordingSession.OpenAsync(microphone, system, cancellation.Token);
             if (_closing || generation != _generation) { await session.DisposeAsync(); return; }
             _session = session; _route = route;
             Model.SetCommandError(null);
@@ -87,6 +91,42 @@ public partial class MainWindow : Window
             if (!_closing && generation == _generation && _session is null) Model.UpdateRecording(null);
         }
     }
+
+    /// <summary>
+    /// Во время записи держит источники в согласии с правилами <see cref="RecordingRoute"/>:
+    /// пропало выбранное — системное, вернулось — снова оно, «Системный» следует за умолчанием.
+    /// </summary>
+    private async Task FollowDevicesAsync()
+    {
+        if (_closing || _followingDevices || !Model.IsRecording || _session is not { } session || DateTime.UtcNow < _followRetry) return;
+        var desired = RecordingRoute.For(_devices, Model.Preferences.MicrophoneId, Model.Preferences.OutputId);
+        var current = session.Snapshot;
+        if (current.MicrophoneSource == desired.MicrophoneSource && current.SystemSource == desired.SystemSource)
+        { Model.SetRoute(desired); return; }
+        _followingDevices = true;
+        try
+        {
+            if (current.MicrophoneSource != desired.MicrophoneSource)
+                await session.SwitchSourceAsync(AudioChannel.Microphone, desired.MicrophoneSource,
+                    Note("MicrophoneNote", DeviceName(_devices.Inputs.FirstOrDefault(d => d.Id == desired.MicrophoneSource)), desired.MicrophoneFallback));
+            if (current.SystemSource != desired.SystemSource)
+                await session.SwitchSourceAsync(AudioChannel.System, desired.SystemSource,
+                    Note("SystemNote", DeviceName(_devices.Outputs.FirstOrDefault(d => d.CaptureSourceId == desired.SystemSource)), desired.SystemFallback));
+            Model.SetRoute(desired);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or TimeoutException)
+        {
+            _followRetry = DateTime.UtcNow.AddSeconds(2);
+            Model.SetRoute(desired, ex.Message);
+        }
+        finally { _followingDevices = false; }
+    }
+
+    private static string? DeviceName(AudioDevice? device) => device?.DisplayName;
+
+    private static string Note(string key, string? device, bool fallback) =>
+        string.Format(CultureInfo.CurrentCulture, Text.Get(key), device ?? Text.Get("NoSource"))
+        + (fallback ? " " + Text.Get("FallbackNote") : "");
 
     private async void OnStartRecording(object? sender, RoutedEventArgs e) => await RunCommandAsync(async session =>
     {

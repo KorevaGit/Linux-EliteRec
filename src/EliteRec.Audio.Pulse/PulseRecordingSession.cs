@@ -4,13 +4,19 @@ using EliteRec.Core.Recording;
 
 namespace EliteRec.Audio.Pulse;
 
-/// <summary>Два record-stream и отдельный поток таймлайна/записи. Диск не вызывается из native callback.</summary>
+/// <summary>
+/// Два record-stream и отдельный поток таймлайна/записи. Диск не вызывается из native callback.
+/// Пропажа источника не останавливает запись: канал пишется тишиной, пока оболочка не
+/// подключит другой источник через <see cref="SwitchSourceAsync"/>.
+/// </summary>
 public sealed class PulseRecordingSession : IRecordingSession
 {
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly SynchronizedAudioMixer _mixer = new();
     private readonly PulseConnection _connection;
-    private readonly PulseCaptureStream _microphone, _system;
+    private readonly object _streams = new();
+    private readonly SemaphoreSlim _switching = new(1, 1);
+    private PulseCaptureStream? _microphone, _system;
     private readonly CancellationTokenSource _stop = new();
     private readonly AutoResetEvent _wake = new(false);
     private readonly object _gate = new(), _disposeGate = new();
@@ -22,7 +28,7 @@ public sealed class PulseRecordingSession : IRecordingSession
     private RecordingFiles? _files;
     private long _recorded, _nextFrame, _recordingMissing;
     private bool _fadeIn, _running = true;
-    private string? _failure;
+    private string? _failure, _microphoneSource, _systemSource;
     private RecordingSnapshot _snapshot = new(RecordingState.Preview, 0, 0, 0, new(0, 0, 0, 0, 0, 0));
     public RecordingSnapshot Snapshot => Volatile.Read(ref _snapshot);
 
@@ -35,11 +41,12 @@ public sealed class PulseRecordingSession : IRecordingSession
             microphone = PulseCaptureStream.Open(_connection, _clock, _mixer, AudioChannel.Microphone, microphoneSource, token);
             system = PulseCaptureStream.Open(_connection, _clock, _mixer, AudioChannel.System, systemSource, token);
             _connection.WaitUntil(() => microphone.HasTiming && system.HasTiming, token);
+            _microphoneSource = microphoneSource; _systemSource = systemSource;
             _microphone = microphone; _system = system;
             _nextFrame = (long)(_clock.Elapsed.TotalSeconds * 100) * 480;
             _worker = Task.Factory.StartNew(Run, CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
         }
-        catch { system?.Dispose(); microphone?.Dispose(); _connection.Dispose(); _wake.Dispose(); _stop.Dispose(); throw; }
+        catch { system?.Dispose(); microphone?.Dispose(); _connection.Dispose(); _wake.Dispose(); _stop.Dispose(); _switching.Dispose(); throw; }
     }
 
     public static Task<PulseRecordingSession> OpenAsync(string microphoneSource, string systemSource,
@@ -70,6 +77,51 @@ public sealed class PulseRecordingSession : IRecordingSession
         _state = RecordingState.Preview; sink!.Dispose();
     }, endsSegment: true);
 
+    public async Task SwitchSourceAsync(AudioChannel channel, string? source, string note)
+    {
+        await _switching.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (!_running) throw new InvalidOperationException(_failure ?? "Аудиосессия закрыта.");
+            await Task.Run(() =>
+            {
+                // Сначала открываем новый (немым): не открылся — старый источник продолжает писать.
+                var stream = source is null ? null
+                    : PulseCaptureStream.Open(_connection, _clock, _mixer, channel, source, _stop.Token, active: false);
+                Detach(channel);
+                if (stream is null) return;
+                lock (_streams)
+                {
+                    if (channel == AudioChannel.Microphone) { _microphone = stream; _microphoneSource = source; }
+                    else { _system = stream; _systemSource = source; }
+                }
+                stream.Active = true;
+            }).ConfigureAwait(false);
+        }
+        finally
+        {
+            _switching.Release();
+            Publish(Snapshot.MicrophonePeak, Snapshot.SystemPeak);
+        }
+        // Отметка — только об удавшемся переключении, на позиции таймлайна записи.
+        await Enqueue(() => _sink?.Mark(Position, note)).ConfigureAwait(false);
+    }
+
+    private TimeSpan Position => TimeSpan.FromSeconds(_recorded / (double)SynchronizedAudioMixer.SampleRate);
+
+    /// <summary>Закрывает поток канала; до нового источника канал звучит тишиной.</summary>
+    private void Detach(AudioChannel channel)
+    {
+        PulseCaptureStream? old;
+        lock (_streams)
+        {
+            if (channel == AudioChannel.Microphone) { old = _microphone; _microphone = null; _microphoneSource = null; }
+            else { old = _system; _system = null; _systemSource = null; }
+        }
+        old?.Dispose();
+        _mixer.Restart(channel);
+    }
+
     private Task Enqueue(Action action, bool endsSegment = false)
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -92,16 +144,29 @@ public sealed class PulseRecordingSession : IRecordingSession
             while (!_stop.IsCancellationRequested)
             {
                 _wake.WaitOne(10);
-                if (_microphone.Failure is { } micError) throw new InvalidOperationException(micError);
-                if (_system.Failure is { } sysError) throw new InvalidOperationException(sysError);
-                if (_microphone.ArrivalAge > 2 || _system.ArrivalAge > 2)
-                    throw new InvalidOperationException("Аудиоданные не поступают более двух секунд. Запись завершена.");
+                PulseCaptureStream? mic, sys;
+                lock (_streams) { mic = _microphone; sys = _system; }
+                AudioChannel? lost = null;
                 using (_connection.Lock())
                 {
                     if (LibPulse.ContextGetState(_connection.Context) != LibPulse.ContextReady) throw new InvalidOperationException("Аудиосервер отключён.");
-                    _microphone.Ready(); _system.Ready();
-                    if (_clock.Elapsed.TotalSeconds - lastTiming >= .25)
-                    { _microphone.UpdateTiming(); _system.UpdateTiming(); lastTiming = _clock.Elapsed.TotalSeconds; }
+                    if (mic is not null && !Alive(mic)) lost = AudioChannel.Microphone;
+                    else if (sys is not null && !Alive(sys)) lost = AudioChannel.System;
+                    else if (_clock.Elapsed.TotalSeconds - lastTiming >= .25)
+                    { mic?.UpdateTiming(); sys?.UpdateTiming(); lastTiming = _clock.Elapsed.TotalSeconds; }
+                }
+                if (lost is { } channel)
+                {
+                    // Выдернули гарнитуру или источник умолк: запись продолжается, канал — тишина.
+                    if (_switching.Wait(0))
+                    {
+                        try { Detach(channel); }
+                        finally { _switching.Release(); }
+                        if (_state is RecordingState.Recording or RecordingState.Paused)
+                            _sink?.Mark(Position, (channel == AudioChannel.Microphone ? "Микрофон" : "Звук системы") + ": источник пропал");
+                        Publish(Snapshot.MicrophonePeak, Snapshot.SystemPeak);
+                    }
+                    continue;
                 }
                 // 250 мс запаса для серверных буферов и джиттера доставки.
                 long ready = (long)((_clock.Elapsed.TotalSeconds - .25) * 48000);
@@ -143,6 +208,14 @@ public sealed class PulseRecordingSession : IRecordingSession
         }
     }
 
+    /// <summary>Поток жив: не упал, не отключён сервером и данные приходят.</summary>
+    private static bool Alive(PulseCaptureStream stream)
+    {
+        if (stream.Failure is not null || stream.ArrivalAge > 2) return false;
+        try { stream.Ready(); return true; }
+        catch (InvalidOperationException) { return false; }
+    }
+
     private void ExecuteCommands()
     {
         while (true)
@@ -160,8 +233,15 @@ public sealed class PulseRecordingSession : IRecordingSession
 
     private void Publish(float microphone, float system) => Volatile.Write(ref _snapshot,
         new(_state, _recorded, microphone, system, _mixer.Statistics, _failure, _files,
-            new(_microphone.Holes + _system.Holes, _microphone.Overflows + _system.Overflows,
-                _microphone.UntimedFrames + _system.UntimedFrames)));
+            Capture(), _microphoneSource, _systemSource));
+
+    // Счётчики текущих потоков; после переключения начинаются заново.
+    private CaptureStatistics Capture()
+    {
+        lock (_streams)
+            return new((_microphone?.Holes ?? 0) + (_system?.Holes ?? 0), (_microphone?.Overflows ?? 0) + (_system?.Overflows ?? 0),
+                (_microphone?.UntimedFrames ?? 0) + (_system?.UntimedFrames ?? 0));
+    }
 
     private static float Peak(ReadOnlySpan<float> samples)
     {
@@ -190,8 +270,10 @@ public sealed class PulseRecordingSession : IRecordingSession
         {
             _stop.Cancel(); _wake.Set();
             await _worker.ConfigureAwait(false);
-            _system.Dispose(); _microphone.Dispose(); _connection.Dispose();
-            _wake.Dispose(); _stop.Dispose();
+            await _switching.WaitAsync().ConfigureAwait(false);
+            lock (_streams) { _system?.Dispose(); _microphone?.Dispose(); _system = _microphone = null; }
+            _connection.Dispose();
+            _wake.Dispose(); _stop.Dispose(); _switching.Dispose();
             Volatile.Write(ref _snapshot, Snapshot with { State = RecordingState.Closed });
         }
     }

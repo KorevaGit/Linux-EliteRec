@@ -12,6 +12,7 @@ public sealed class RecordingSink : IRecordingSink
 {
     private const long SyncFrames = SynchronizedAudioMixer.SampleRate * 5L;
     private readonly Part _mix, _stereo;
+    private readonly string _eventsPath;
     private long _sinceSync;
     private bool _disposed;
     public RecordingFiles Files { get; }
@@ -23,10 +24,26 @@ public sealed class RecordingSink : IRecordingSink
         string folder = Path.GetDirectoryName(full)!, name = Path.GetFileName(full);
         Directory.CreateDirectory(folder);
         Files = new(full + extension, full + RecordingRecovery.StereoSuffix + extension);
+        _eventsPath = full + EventsSuffix;
         if (File.Exists(Files.MixPath) || File.Exists(Files.StereoPath)) throw new IOException($"Файл записи уже существует: {name}.");
         _mix = new Part(PartPath(folder, name, extension), Files.MixPath, format, stereo: false);
         try { _stereo = new Part(PartPath(folder, name + RecordingRecovery.StereoSuffix, extension), Files.StereoPath, format, stereo: true); }
         catch { _mix.Abandon(); throw; }
+    }
+
+    /// <summary>Файл отметок рядом с записью; появляется только при первом событии.</summary>
+    public const string EventsSuffix = "_события.txt";
+
+    /// <summary>
+    /// Строка «чч:мм:сс  текст» в файл отметок. Пишется сразу и сбрасывается на диск: файл обычный,
+    /// не часть, поэтому переживает сбой без восстановления.
+    /// </summary>
+    public void Mark(TimeSpan at, string text)
+    {
+        ObjectDisposedException.ThrowIf(_disposed, this);
+        using var file = new FileStream(_eventsPath, FileMode.Append, FileAccess.Write, FileShare.Read);
+        file.Write(System.Text.Encoding.UTF8.GetBytes(at.ToString(@"hh\:mm\:ss", System.Globalization.CultureInfo.InvariantCulture) + "  " + text + "\n"));
+        file.Flush(flushToDisk: true);
     }
 
     internal static string PartPath(string folder, string name, string extension) =>

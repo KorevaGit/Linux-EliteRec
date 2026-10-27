@@ -69,6 +69,26 @@ public class FormatTests
         finally { Directory.Delete(root, recursive: true); }
     }
 
+    [Fact]
+    public void MarksGoToVisibleEventsFileOnlyWhenSomethingHappened()
+    {
+        string root = Root();
+        try
+        {
+            using (var sink = new RecordingSink(Path.Combine(root, "quiet"), RecordingFormat.Wav)) { }
+            Assert.False(File.Exists(Path.Combine(root, "quiet" + RecordingSink.EventsSuffix)));
+            using (var sink = new RecordingSink(Path.Combine(root, "call"), RecordingFormat.Wav))
+            {
+                IRecordingSink marks = sink;
+                marks.Mark(TimeSpan.FromSeconds(754), "Микрофон: источник пропал");
+                marks.Mark(TimeSpan.FromSeconds(755), "Микрофон: Встроенный (выбранное устройство отключено)");
+            }
+            Assert.Equal(["00:12:34  Микрофон: источник пропал", "00:12:35  Микрофон: Встроенный (выбранное устройство отключено)"],
+                File.ReadAllLines(Path.Combine(root, "call" + RecordingSink.EventsSuffix)));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
     private static (int Channels, long Samples) StreamInfo(string path)
     {
         byte[] b = File.ReadAllBytes(path);

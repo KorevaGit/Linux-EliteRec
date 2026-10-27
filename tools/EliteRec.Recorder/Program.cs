@@ -17,7 +17,7 @@ try
     var values = new Dictionary<string, string>(StringComparer.Ordinal);
     for (int i = 0; i < args.Length; i += 2)
     {
-        if (i + 1 >= args.Length || !new[] { "--source", "--system-source", "--output", "--seconds", "--pause-after", "--pause-for", "--close-active", "--format" }.Contains(args[i])
+        if (i + 1 >= args.Length || !new[] { "--source", "--system-source", "--output", "--seconds", "--pause-after", "--pause-for", "--close-active", "--format", "--fallback-source" }.Contains(args[i])
             || !values.TryAdd(args[i], args[i + 1])) throw new ArgumentException("Некорректный аргумент: " + args[i]);
     }
     string Required(string key) => values.GetValueOrDefault(key) ?? throw new ArgumentException("Требуется " + key);
@@ -40,6 +40,9 @@ try
         var clock = Stopwatch.StartNew();
         await session.StartRecordingAsync(() => new RecordingSink(path, format switch { "mp3" => RecordingFormat.Mp3, "flac" => RecordingFormat.Flac, "opus" => RecordingFormat.Opus, _ => RecordingFormat.Wav }));
         bool paused = false, resumed = false;
+        string microphone = Required("--source");
+        string? fallback = values.GetValueOrDefault("--fallback-source");
+        double nextReturn = 0;
         while (clock.Elapsed.TotalSeconds < seconds && !cancelled.IsCancellationRequested)
         {
             if (session.Snapshot.State == RecordingState.Faulted)
@@ -47,6 +50,22 @@ try
                 await File.WriteAllTextAsync(path + ".json", JsonSerializer.Serialize(session.Snapshot, new JsonSerializerOptions { WriteIndented = true }));
                 throw new InvalidOperationException(session.Snapshot.Error);
             }
+            // Как окно в R4: пропал микрофон — запасной источник; раз в секунду пробуем вернуть исходный.
+            var current = session.Snapshot;
+            if (current.MicrophoneSource is null)
+            {
+                if (fallback is null) throw new InvalidOperationException("Источник звука отключён: Microphone");
+                await session.SwitchSourceAsync(AudioChannel.Microphone, fallback, "Микрофон: " + fallback + " (выбранное устройство отключено)");
+                nextReturn = clock.Elapsed.TotalSeconds + 1;
+            }
+            else if (current.MicrophoneSource == fallback && clock.Elapsed.TotalSeconds >= nextReturn)
+            {
+                nextReturn = clock.Elapsed.TotalSeconds + 1;
+                // Не открылся — запасной продолжает писать (новый поток открывается до закрытия старого).
+                try { await session.SwitchSourceAsync(AudioChannel.Microphone, microphone, "Микрофон: " + microphone); }
+                catch (Exception ex) when (ex is InvalidOperationException or TimeoutException) { }
+            }
+            if (current.SystemSource is null) throw new InvalidOperationException("Источник звука отключён: System");
             if (pauseFor > 0 && !paused && clock.Elapsed.TotalSeconds >= pauseAfter) { await session.PauseAsync(); paused = true; }
             if (paused && !resumed && clock.Elapsed.TotalSeconds >= pauseAfter + pauseFor) { await session.ResumeAsync(); resumed = true; }
             await Task.Delay(10);

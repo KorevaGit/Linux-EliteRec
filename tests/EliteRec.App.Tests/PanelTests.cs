@@ -131,6 +131,19 @@ public class PanelTests
     }
 
     [Fact]
+    public void FallbackRouteShowsWarningInsteadOfRecordingNotice()
+    {
+        var model = new MainPanelModel(new(), _ => { });
+        model.UpdateRecording(new(RecordingState.Recording, 0, 0, 0, new(0, 0, 0, 0, 0, 0)));
+        model.SetRoute(new("builtin-mic", "speakers.monitor", MicrophoneFallback: true));
+        Assert.Equal("Микрофон отключён, пишем с системного", model.RecordingHint);
+        model.SetRoute(new("jabra-mic", "speakers.monitor"));
+        Assert.Contains("предупредите клиента", model.RecordingHint);
+        model.SetRoute(new("jabra-mic", null));
+        Assert.Contains("«Система» пишется тишиной", model.RecordingHint);
+    }
+
+    [Fact]
     public void CommandErrorSurvivesMeterUpdates()
     {
         var model = new MainPanelModel(new(), _ => { });

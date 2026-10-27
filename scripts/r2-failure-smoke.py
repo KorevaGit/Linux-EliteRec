@@ -38,7 +38,8 @@ def main():
             deadline = time.monotonic() + 10
             while time.monotonic() < deadline:
                 if recorder.poll() is not None: raise RuntimeError((folder / "recorder.log").read_text())
-                if base.with_suffix(".wav").exists() and base.with_suffix(".wav").stat().st_size > 48000: break
+                part = folder / ".recording.wav.part"  # с R3 файл скрыт, пока идёт запись
+                if part.exists() and part.stat().st_size > 48000: break
                 time.sleep(.1)
             else: raise TimeoutError("Запись не началась")
             pactl("unload-module", modules[0])

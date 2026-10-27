@@ -33,4 +33,13 @@
   <data name="Discard" xml:space="preserve"><value>Удалить</value></data>
   <data name="Recovered" xml:space="preserve"><value>Восстановлено:</value></data>
   <data name="FormatLabel" xml:space="preserve"><value>Формат записи</value></data>
+  <data name="MicrophoneFallback" xml:space="preserve"><value>Микрофон отключён, пишем с системного</value></data>
+  <data name="SystemFallback" xml:space="preserve"><value>Выбранный вывод отключён, пишем звук системного</value></data>
+  <data name="MicrophoneSilent" xml:space="preserve"><value>Нет микрофона — канал «Вы» пишется тишиной</value></data>
+  <data name="SystemSilent" xml:space="preserve"><value>Нет вывода звука — канал «Система» пишется тишиной</value></data>
+  <data name="SwitchFailed" xml:space="preserve"><value>Не удалось переключить устройство, повтор через 2 с:</value></data>
+  <data name="MicrophoneNote" xml:space="preserve"><value>Микрофон: {0}</value></data>
+  <data name="SystemNote" xml:space="preserve"><value>Звук системы: {0}</value></data>
+  <data name="FallbackNote" xml:space="preserve"><value>(выбранное устройство отключено)</value></data>
+  <data name="NoSource" xml:space="preserve"><value>нет источника, пишется тишина</value></data>
 </root>

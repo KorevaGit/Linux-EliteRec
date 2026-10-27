@@ -1,0 +1,16 @@
+{
+  "date": "2026-10-27",
+  "machine": "машина разработки, Linux Mint / PipeWire, виртуальные null-sink",
+  "command": "python3 scripts/r4-device-smoke.py",
+  "scenario": "гарнитура 440 Гц, запасной микрофон 880 Гц, система 660 Гц; гарнитура выгружена на 4-й с, загружена снова на 8-й",
+  "seconds": 14.01,
+  "missing_frames": [0, 0],
+  "gap_ms": 534,
+  "left_hz": {"before": 440, "unplugged": 878, "returned": 440},
+  "right_hz_range": [658, 662],
+  "events": [
+    "00:00:03  Микрофон: источник пропал",
+    "00:00:03  Микрофон: …_spare.monitor (выбранное устройство отключено)",
+    "00:00:08  Микрофон: …_headset.monitor"
+  ]
+}

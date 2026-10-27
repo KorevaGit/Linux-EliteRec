@@ -42,7 +42,7 @@ public sealed class MainPanelModel : INotifyPropertyChanged
     public string PauseLabel => Text.Get(_recording?.State == RecordingState.Paused ? "Resume" : "Pause");
     public float MicrophonePeak => Math.Min(1, _recording?.MicrophonePeak ?? 0);
     public float SystemPeak => Math.Min(1, _recording?.SystemPeak ?? 0);
-    public string RecordingHint => _commandError ?? _recording?.Error ?? (_recording?.State switch
+    public string RecordingHint => _commandError ?? _recording?.Error ?? DeviceWarning ?? (_recording?.State switch
     {
         RecordingState.Recording => Text.Get("RecordingNotice"),
         RecordingState.Paused => Text.Get("PausedNotice"),
@@ -110,6 +110,26 @@ public sealed class MainPanelModel : INotifyPropertyChanged
             foreach (string property in new[] { nameof(Format), nameof(FormatChoice), nameof(RecordingHint), nameof(SettingsError) })
                 PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
         }
+    }
+
+    private RecordingRoute? _route;
+    private string? _routeError;
+
+    /// <summary>Предупреждение об устройстве: пишем не с выбранного или канал без источника.</summary>
+    public string? DeviceWarning => _routeError is { } error ? Text.Get("SwitchFailed") + " " + error
+        : _route is not { } r ? null
+        : r.MicrophoneSource is null ? Text.Get("MicrophoneSilent")
+        : r.SystemSource is null ? Text.Get("SystemSilent")
+        : r.MicrophoneFallback ? Text.Get("MicrophoneFallback")
+        : r.SystemFallback ? Text.Get("SystemFallback") : null;
+    public bool HasDeviceWarning => DeviceWarning is not null;
+
+    public void SetRoute(RecordingRoute route, string? error = null)
+    {
+        if (route == _route && error == _routeError) return;
+        _route = route; _routeError = error;
+        foreach (string property in new[] { nameof(DeviceWarning), nameof(HasDeviceWarning), nameof(RecordingHint) })
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
     }
 
     public IncompleteRecording? PendingRecovery { get; private set; }

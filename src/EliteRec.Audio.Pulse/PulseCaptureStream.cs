@@ -20,6 +20,9 @@ internal sealed unsafe class PulseCaptureStream : IDisposable
     private long _holes, _overflows, _untimed;
     private string? _failure;
     private double _lastArrival;
+    private volatile bool _active;
+    /// <summary>Отдавать ли данные в микшер. Новый источник открывается немым и включается при подмене.</summary>
+    internal bool Active { get => _active; set => _active = value; }
     internal string? Failure => Volatile.Read(ref _failure);
     internal bool HasTiming => Volatile.Read(ref _timedFrames) > 0;
     internal long Holes => Volatile.Read(ref _holes);
@@ -28,12 +31,16 @@ internal sealed unsafe class PulseCaptureStream : IDisposable
     internal double ArrivalAge => _clock.Elapsed.TotalSeconds - Volatile.Read(ref _lastArrival);
 
     private PulseCaptureStream(PulseConnection connection, Stopwatch clock, SynchronizedAudioMixer mixer, AudioChannel channel)
-    { _connection = connection; _clock = clock; _mixer = mixer; _channel = channel; }
+    {
+        _connection = connection; _clock = clock; _mixer = mixer; _channel = channel;
+        // «Данных нет N секунд» считается от открытия, иначе новый источник сразу выглядит умершим.
+        _lastArrival = clock.Elapsed.TotalSeconds;
+    }
 
     internal static PulseCaptureStream Open(PulseConnection connection, Stopwatch clock, SynchronizedAudioMixer mixer,
-        AudioChannel channel, string device, CancellationToken token)
+        AudioChannel channel, string device, CancellationToken token, bool active = true)
     {
-        var capture = new PulseCaptureStream(connection, clock, mixer, channel);
+        var capture = new PulseCaptureStream(connection, clock, mixer, channel) { Active = active };
         capture._self = GCHandle.Alloc(capture);
         try
         {
@@ -112,6 +119,11 @@ internal sealed unsafe class PulseCaptureStream : IDisposable
                 if (bytes == 0) return;
                 Volatile.Write(ref self._lastArrival, self._clock.Elapsed.TotalSeconds);
                 int count = checked((int)(bytes / sizeof(float)));
+                if (!self._active)
+                {
+                    if (LibPulse.StreamDrop(stream) < 0) throw new InvalidOperationException("Ошибка освобождения аудиоблока.");
+                    continue;
+                }
                 double? time = self.FirstSampleTime();
                 if (time is null)
                 {

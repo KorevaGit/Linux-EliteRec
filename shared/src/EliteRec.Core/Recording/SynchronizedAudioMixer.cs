@@ -4,7 +4,8 @@ public enum AudioChannel { Microphone, System }
 
 public sealed record SynchronizerStatistics(long MissingMicrophoneFrames, long MissingSystemFrames,
     long MicrophoneFrames, long SystemFrames, double MicrophoneClockPpm, double SystemClockPpm,
-    long FutureMicrophoneFrames = 0, long FutureSystemFrames = 0, long ExpiredMicrophoneFrames = 0, long ExpiredSystemFrames = 0);
+    long FutureMicrophoneFrames = 0, long FutureSystemFrames = 0, long ExpiredMicrophoneFrames = 0, long ExpiredSystemFrames = 0,
+    long GapMicrophoneFrames = 0, long GapSystemFrames = 0);
 
 /// <summary>
 /// Два ограниченных кольцевых буфера и общий таймлайн 48 кГц. Модель часов
@@ -15,7 +16,22 @@ public sealed class SynchronizedAudioMixer
     public const int SampleRate = 48000;
     public const int BlockFrames = 480;
     private readonly object _gate = new();
-    private readonly ClockedBuffer _microphone = new(), _system = new();
+    private ClockedBuffer _microphone = new(), _system = new();
+    // Счётчики буферов, заменённых при переключении источника.
+    private readonly ClockedBuffer _retiredMicrophone = new(), _retiredSystem = new();
+
+    /// <summary>
+    /// Новый источник канала (переключение устройства): старые отсчёты и модель часов сбрасываются.
+    /// Пока новый поток не дал данных, канал звучит тишиной — это «разрыв», а не потеря.
+    /// </summary>
+    public void Restart(AudioChannel channel)
+    {
+        lock (_gate)
+        {
+            if (channel == AudioChannel.Microphone) { _retiredMicrophone.Absorb(_microphone); _microphone = new() { Detached = true, Restarted = true }; }
+            else { _retiredSystem.Absorb(_system); _system = new() { Detached = true, Restarted = true }; }
+        }
+    }
 
     public void Push(AudioChannel channel, double firstSampleSeconds, ReadOnlySpan<float> samples)
     {
@@ -54,9 +70,14 @@ public sealed class SynchronizedAudioMixer
     {
         get
         {
-            lock (_gate) return new(_microphone.Missing, _system.Missing, _microphone.Count, _system.Count,
-                (_microphone.Rate / SampleRate - 1) * 1e6, (_system.Rate / SampleRate - 1) * 1e6,
-                _microphone.Future, _system.Future, _microphone.Expired, _system.Expired);
+            lock (_gate)
+            {
+                ClockedBuffer m = _microphone, s = _system, rm = _retiredMicrophone, rs = _retiredSystem;
+                return new(m.Missing + rm.Missing, s.Missing + rs.Missing, m.Count + rm.Count, s.Count + rs.Count,
+                    (m.Rate / SampleRate - 1) * 1e6, (s.Rate / SampleRate - 1) * 1e6,
+                    m.Future + rm.Future, s.Future + rs.Future, m.Expired + rm.Expired, s.Expired + rs.Expired,
+                    m.Gap + rm.Gap, s.Gap + rs.Gap);
+            }
         }
     }
 
@@ -80,8 +101,17 @@ public sealed class SynchronizedAudioMixer
         private double _lastAnchorTime = double.NegativeInfinity, _offset;
         private double _position = double.NaN;
         private long _nextOutputFrame = -1;
-        internal long Count, Missing, Future, Expired;
+        internal long Count, Missing, Future, Expired, Gap;
         internal double Rate = SampleRate;
+        /// <summary>Источник переключается: до первой метки нового потока канал — тишина.</summary>
+        internal bool Detached;
+        /// <summary>Буфер заменённого источника: позиции до его первого отсчёта — разрыв, а не потеря.</summary>
+        internal bool Restarted;
+
+        internal void Absorb(ClockedBuffer old)
+        {
+            Count += old.Count; Missing += old.Missing; Future += old.Future; Expired += old.Expired; Gap += old.Gap;
+        }
 
         internal void Push(double firstSeconds, ReadOnlySpan<float> samples)
         {
@@ -90,6 +120,7 @@ public sealed class SynchronizedAudioMixer
                 _samples[(first + i) % _samples.Length] = float.IsFinite(samples[i]) ? samples[i] : 0;
             Count += samples.Length;
             if (samples.IsEmpty || firstSeconds - _lastAnchorTime < .25) return;
+            Detached = false;
             _lastAnchorTime = firstSeconds;
             _anchors[_anchorNext] = (firstSeconds, first);
             _anchorNext = (_anchorNext + 1) % _anchors.Length;
@@ -110,6 +141,7 @@ public sealed class SynchronizedAudioMixer
 
         internal void Render(long firstFrame, Span<float> output)
         {
+            if (Detached) { output.Clear(); Gap += output.Length; return; }
             if (_anchorCount == 0) { output.Clear(); Missing += output.Length; return; }
             double desired = _offset + Rate * firstFrame / SampleRate;
             if (_nextOutputFrame != firstFrame || double.IsNaN(_position)) _position = desired;
@@ -118,6 +150,7 @@ public sealed class SynchronizedAudioMixer
             for (int i = 0; i < output.Length; i++, _position += step)
             {
                 long a = (long)Math.Floor(_position);
+                if (a < 0 && Restarted) { output[i] = 0; Gap++; continue; } // до первого отсчёта нового источника
                 if (a < oldest) { output[i] = 0; Missing++; Expired++; continue; }
                 if (a + 1 >= Count) { output[i] = 0; Missing++; Future++; continue; }
                 float left = _samples[a % _samples.Length], right = _samples[(a + 1) % _samples.Length];
@@ -129,6 +162,7 @@ public sealed class SynchronizedAudioMixer
         internal bool CanRender(long firstFrame, int count)
         {
             if (count == 0) return true;
+            if (Detached) return true;
             if (_anchorCount == 0) return false;
             double desired = _offset + Rate * firstFrame / SampleRate;
             double position = _nextOutputFrame != firstFrame || double.IsNaN(_position) ? desired : _position;
