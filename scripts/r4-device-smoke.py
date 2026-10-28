@@ -96,7 +96,7 @@ def main():
         snapshot = json.loads(Path(str(base) + ".json").read_text())
         stats = snapshot["Synchronization"]
         events = Path(str(base) + "_события.txt").read_text(encoding="utf-8").splitlines()
-        data = (directory / "call_stereo.wav").read_bytes()[44:]
+        data = (directory / "call.wav").read_bytes()[44:]
         frames = array.array("h", data)
         if sys.byteorder != "little": frames.byteswap()
         left, right = frames[0::2], frames[1::2]

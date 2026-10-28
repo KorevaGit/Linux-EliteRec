@@ -20,6 +20,7 @@ public sealed class PulseRecordingSession : IRecordingSession
     private readonly CancellationTokenSource _stop = new();
     private readonly AutoResetEvent _wake = new(false);
     private readonly object _gate = new(), _disposeGate = new();
+    private volatile float _microphoneGain = 1, _systemGain = 1;
     private readonly Queue<Command> _commands = new();
     private readonly Task _worker;
     private Task? _disposeTask;
@@ -30,6 +31,8 @@ public sealed class PulseRecordingSession : IRecordingSession
     private bool _fadeIn, _running = true;
     private string? _failure, _microphoneSource, _systemSource;
     private RecordingSnapshot _snapshot = new(RecordingState.Preview, 0, 0, 0, new(0, 0, 0, 0, 0, 0));
+    public void SetMixLevels(float microphone, float system) { _microphoneGain = microphone; _systemGain = system; }
+
     public RecordingSnapshot Snapshot => Volatile.Read(ref _snapshot);
 
     private PulseRecordingSession(string microphoneSource, string systemSource, CancellationToken token)
@@ -194,7 +197,7 @@ public sealed class PulseRecordingSession : IRecordingSession
                         bool fadeOut;
                         lock (_gate) fadeOut = _commands.TryPeek(out var next) && next.EndsSegment && next.Frame <= _nextFrame + 480;
                         Fade(microphone, _fadeIn, fadeOut); Fade(system, _fadeIn, fadeOut); _fadeIn = false;
-                        SynchronizedAudioMixer.Mix(microphone, system, mix);
+                        SynchronizedAudioMixer.Mix(microphone, system, mix, _microphoneGain, _systemGain);
                         _sink!.Write(microphone, system, mix); _recorded += 480;
                     }
                     _nextFrame += 480;

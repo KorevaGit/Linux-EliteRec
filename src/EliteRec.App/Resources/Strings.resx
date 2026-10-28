@@ -50,7 +50,7 @@
   <data name="Settings" xml:space="preserve"><value>Настройки</value></data>
   <data name="FormatMp3" xml:space="preserve"><value>Компактный, удобно отправлять</value></data>
   <data name="FormatFlac" xml:space="preserve"><value>Без потерь, файл крупнее</value></data>
-  <data name="FormatOpus" xml:space="preserve"><value>Самый компактный, хорошее качество речи</value></data>
+  <data name="FormatOpus" xml:space="preserve"><value>Самый компактный, речь звучит чисто</value></data>
   <data name="FormatWav" xml:space="preserve"><value>Без сжатия, самый крупный</value></data>
   <data name="SelfTest" xml:space="preserve"><value>Проверка записи</value></data>
   <data name="SelfTestHint" xml:space="preserve"><value>Скажите фразу и включите любой звук на компьютере — запишем {0} секунд и проверим обе стороны.</value></data>
@@ -66,4 +66,25 @@
   <data name="ListenHint" xml:space="preserve"><value>Стерео-файл пробы: слева вы, справа система</value></data>
   <data name="Save" xml:space="preserve"><value>Сохранить</value></data>
   <data name="Cancel" xml:space="preserve"><value>Отмена</value></data>
+  <data name="TrayStart" xml:space="preserve"><value>Начать запись</value></data>
+  <data name="TrayStop" xml:space="preserve"><value>Остановить и сохранить</value></data>
+  <data name="TrayShow" xml:space="preserve"><value>Открыть окно</value></data>
+  <data name="TrayQuit" xml:space="preserve"><value>Выход</value></data>
+  <data name="TrayIdleTip" xml:space="preserve"><value>EliteRec — не пишем</value></data>
+  <data name="TrayRecordingTip" xml:space="preserve"><value>EliteRec — идёт запись {0}</value></data>
+  <data name="TrayPausedTip" xml:space="preserve"><value>EliteRec — пауза {0}</value></data>
+  <data name="RecordingStartedTitle" xml:space="preserve"><value>Идёт запись</value></data>
+  <data name="RecordingStartedBody" xml:space="preserve"><value>Предупредите клиента, что разговор записывается.</value></data>
+  <data name="HiddenToTrayTitle" xml:space="preserve"><value>EliteRec работает в трее</value></data>
+  <data name="HiddenToTrayBody" xml:space="preserve"><value>Окно скрыто — запись и настройки доступны из значка в трее.</value></data>
+  <data name="TitleCaption" xml:space="preserve"><value>НАЗВАНИЕ ЗАПИСИ</value></data>
+  <data name="TitleSave" xml:space="preserve"><value>Сохранить</value></data>
+  <data name="SaveRecording" xml:space="preserve"><value>Запись сохранена</value></data>
+  <data name="FolderCaption" xml:space="preserve"><value>ПАПКА ЗАПИСЕЙ</value></data>
+  <data name="FolderChange" xml:space="preserve"><value>Изменить…</value></data>
+  <data name="FolderDefault" xml:space="preserve"><value>По умолчанию</value></data>
+  <data name="MixCaption" xml:space="preserve"><value>ФАЙЛЫ ЗАПИСИ</value></data>
+  <data name="SaveMono" xml:space="preserve"><value>Также сохранять общий файл (моно)</value></data>
+  <data name="FilesHint" xml:space="preserve"><value>Основной файл — стерео: слева вы, справа клиент. Его отправляют на расшифровку.</value></data>
+  <data name="MixHint" xml:space="preserve"><value>Громкость сторон в общем файле. Стерео-файл не меняется.</value></data>
 </root>

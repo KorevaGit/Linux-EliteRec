@@ -46,7 +46,7 @@ def main():
             modules[0] = None
             assert recorder.wait(timeout=10) == 2
         counts = []
-        for path, channels in [(str(base) + ".wav", 1), (str(base) + "_stereo.wav", 2)]:
+        for path, channels in [(str(base) + "_mono.wav", 1), (str(base) + ".wav", 2)]:
             with wave.open(path, "rb") as recording:
                 assert recording.getnchannels() == channels and recording.getnframes() > 0
                 counts.append(recording.getnframes())

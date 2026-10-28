@@ -34,7 +34,7 @@ public unsafe class OpusTests
         try
         {
             var files = Write(Path.Combine(root, "call"), 2, silentRight: false);
-            foreach (string path in new[] { files.MixPath, files.StereoPath })
+            foreach (string path in files.All)
             {
                 var pages = OggPages.Read(File.ReadAllBytes(path));
                 Assert.Equal(new FileInfo(path).Length, pages[^1].Start + pages[^1].Length); // все CRC верны
@@ -54,7 +54,7 @@ public unsafe class OpusTests
         {
             var files = Write(Path.Combine(root, "done"), 3, silentRight: false);
             byte[] whole = File.ReadAllBytes(files.StereoPath);
-            File.WriteAllBytes(Path.Combine(root, ".torn_stereo.opus.part"), whole[..^50]);
+            File.WriteAllBytes(Path.Combine(root, ".torn.opus.part"), whole[..^50]);
 
             var found = Assert.Single(RecordingRecovery.Find(root, DateTime.UtcNow.AddMinutes(1)));
             Assert.Equal(RecordingFormat.Opus, found.Format);
@@ -113,7 +113,7 @@ public unsafe class OpusTests
 
     private static RecordingFiles Write(string basePath, int seconds, bool silentRight)
     {
-        using var sink = new RecordingSink(basePath, RecordingFormat.Opus);
+        using var sink = new RecordingSink(basePath, RecordingFormat.Opus, mono: true);
         float[] mic = new float[SynchronizedAudioMixer.BlockFrames], sys = new float[mic.Length], mix = new float[mic.Length];
         for (int block = 0; block < seconds * 100; block++)
         {

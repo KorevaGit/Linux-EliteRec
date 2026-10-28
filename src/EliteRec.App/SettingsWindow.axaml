@@ -3,7 +3,7 @@
         xmlns:app="using:EliteRec.App"
         xmlns:res="using:EliteRec.App.Resources"
         x:Class="EliteRec.App.SettingsWindow" x:DataType="app:SettingsModel"
-        Title="{x:Static res:Text.Settings}" Width="400" Height="592" CanResize="False"
+        Title="{x:Static res:Text.Settings}" Width="400" Height="700" CanResize="False" CanMinimize="False"
         Background="Transparent" TransparencyLevelHint="Transparent" WindowDecorations="None" Foreground="#ECE8DF"
         WindowStartupLocation="CenterOwner" Icon="avares://EliteRec.App/Assets/eliterec.png">
   <!-- Настройки в стиле главного окна (макет 6): формат применяется только по «Сохранить»; самопроверка записи. -->
@@ -67,6 +67,23 @@
       <Setter Property="Background" Value="#E6C470" />
     </Style>
     <Style Selector="TextBlock.result"><Setter Property="Foreground" Value="#F0D48A" /></Style>
+    <Style Selector="Button.link">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="FontSize" Value="12" />
+      <Setter Property="Foreground" Value="#D6B35C" />
+    </Style>
+    <Style Selector="Button.link:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="Transparent" /></Style>
+    <Style Selector="Border.card">
+      <Setter Property="CornerRadius" Value="14" />
+      <Setter Property="Padding" Value="14" />
+      <Setter Property="Background" Value="#0AFFFFFF" />
+      <Setter Property="BorderBrush" Value="#17FFFFFF" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="Slider.gold /template/ Track Thumb"><Setter Property="Background" Value="#D6B35C" /></Style>
+    <Style Selector="Slider.blue /template/ Track Thumb"><Setter Property="Background" Value="#7FB0E8" /></Style>
     <Style Selector="TextBlock.result.ok"><Setter Property="Foreground" Value="#8FD19E" /></Style>
   </Window.Styles>
 
@@ -76,64 +93,100 @@
     <Border Classes="frame-inner">
       <DockPanel>
         <app:TitleBar DockPanel.Dock="Top" />
-        <Grid Margin="22" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="12">
-          <TextBlock Classes="caption" Text="ФОРМАТ ЗАПИСИ" />
-          <ListBox Grid.Row="1" Classes="formats" ItemsSource="{Binding Formats}" SelectedItem="{Binding SelectedFormat, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
-                   AutomationProperties.Name="Формат записи">
-            <ListBox.ItemTemplate>
-              <DataTemplate x:DataType="app:FormatItem">
-                <StackPanel Orientation="Horizontal" Spacing="12">
-                  <TextBlock Text="{Binding Title}" FontWeight="Bold" Width="44" VerticalAlignment="Center" />
-                  <TextBlock Text="{Binding Hint}" Foreground="#A9A397" FontSize="12" VerticalAlignment="Center" />
-                </StackPanel>
-              </DataTemplate>
-            </ListBox.ItemTemplate>
-          </ListBox>
-
-          <TextBlock Grid.Row="2" Classes="caption" Text="ПРОВЕРКА ЗАПИСИ" Margin="0,8,0,0" />
-          <Border Grid.Row="3" CornerRadius="14" Padding="14" Background="#0AFFFFFF" BorderBrush="#17FFFFFF" BorderThickness="1"
-                  BoxShadow="0 10 28 0 #73000000" VerticalAlignment="Top">
-            <StackPanel Spacing="12">
-              <TextBlock Text="{Binding TestStatus}" TextWrapping="Wrap" FontSize="12" Foreground="#A9A397" />
-              <Grid ColumnDefinitions="22,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="4">
-                <app:Icon Kind="mic.fill" Foreground="#D6B35C" Width="18" Height="18" VerticalAlignment="Center" />
-                <ProgressBar Grid.Column="1" Classes="meter" Value="{Binding MicLevel}" Foreground="#D6B35C" />
-<StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasResult}">
-                  <Panel Width="14" Height="14" VerticalAlignment="Top" Margin="0,1,0,0">
-                    <app:Icon Kind="checkmark.circle" Foreground="#8FD19E" IsVisible="{Binding MicHeard}" />
-                    <app:Icon Kind="exclamationmark.circle" Foreground="#F0D48A" IsVisible="{Binding !MicHeard}" />
-                  </Panel>
-                  <TextBlock Classes="result" Classes.ok="{Binding MicHeard}" Text="{Binding MicResult}" FontSize="12" TextWrapping="Wrap" MaxWidth="290" />
-                </StackPanel>
-              </Grid>
-              <Grid ColumnDefinitions="22,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="4">
-                <app:Icon Kind="speaker.wave.2" Foreground="#7FB0E8" Width="18" Height="18" VerticalAlignment="Center" />
-                <ProgressBar Grid.Column="1" Classes="meter" Value="{Binding SystemLevel}" Foreground="#7FB0E8" />
-<StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasResult}">
-                  <Panel Width="14" Height="14" VerticalAlignment="Top" Margin="0,1,0,0">
-                    <app:Icon Kind="checkmark.circle" Foreground="#8FD19E" IsVisible="{Binding SystemHeard}" />
-                    <app:Icon Kind="exclamationmark.circle" Foreground="#F0D48A" IsVisible="{Binding !SystemHeard}" />
-                  </Panel>
-                  <TextBlock Classes="result" Classes.ok="{Binding SystemHeard}" Text="{Binding SystemResult}" FontSize="12" TextWrapping="Wrap" MaxWidth="290" />
-                </StackPanel>
-              </Grid>
-              <StackPanel Orientation="Horizontal" Spacing="10">
-                <Button Classes="pill" Content="{x:Static res:Text.SelfTestRun}" IsEnabled="{Binding CanTest}" Click="OnRunTest" />
-                <Button Classes="pill" IsVisible="{Binding CanListen}" Click="OnListen" ToolTip.Tip="{x:Static res:Text.ListenHint}">
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <app:Icon Kind="play.fill" Foreground="#ECE8DF" Width="16" Height="16" VerticalAlignment="Center" />
-                    <TextBlock Text="{x:Static res:Text.Listen}" VerticalAlignment="Center" />
+        <StackPanel DockPanel.Dock="Bottom" Margin="22,10,22,18" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+          <Button Classes="pill" Content="{x:Static res:Text.Cancel}" IsEnabled="{Binding IsIdle}" Click="OnCancel" />
+          <Button Name="SaveButton" Classes="pill primary" Content="{x:Static res:Text.Save}" IsEnabled="{Binding IsIdle}" Click="OnSave" />
+        </StackPanel>
+        <ScrollViewer HorizontalScrollBarVisibility="Disabled">
+          <StackPanel Margin="22,12,22,6" Spacing="12">
+            <TextBlock Classes="caption" Text="ФОРМАТ ЗАПИСИ" />
+            <ListBox Classes="formats" ScrollViewer.HorizontalScrollBarVisibility="Disabled" ItemsSource="{Binding Formats}" SelectedItem="{Binding SelectedFormat, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                     AutomationProperties.Name="Формат записи">
+              <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="app:FormatItem">
+                  <StackPanel Orientation="Horizontal" Spacing="12">
+                    <TextBlock Text="{Binding Title}" FontWeight="Bold" Width="44" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding Hint}" Foreground="#A9A397" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" MaxWidth="250" />
                   </StackPanel>
-                </Button>
-              </StackPanel>
-            </StackPanel>
-          </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </ListBox>
 
-          <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
-            <Button Classes="pill" Content="{x:Static res:Text.Cancel}" IsEnabled="{Binding IsIdle}" Click="OnCancel" />
-            <Button Name="SaveButton" Classes="pill primary" Content="{x:Static res:Text.Save}" IsEnabled="{Binding IsIdle}" Click="OnSave" />
+            <TextBlock Classes="caption" Text="{x:Static res:Text.FolderCaption}" Margin="0,8,0,0" />
+            <Border Classes="card">
+              <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="6">
+                <app:Icon Kind="folder" Foreground="#CFC9BD" Width="18" Height="18" VerticalAlignment="Center" />
+                <TextBlock Grid.Column="1" Text="{Binding FolderLabel}" ToolTip.Tip="{Binding FolderLabel}" TextTrimming="PathSegmentEllipsis"
+                           FontSize="12" VerticalAlignment="Center" />
+                <Button Grid.Column="2" Classes="pill" Content="{x:Static res:Text.FolderChange}" IsEnabled="{Binding IsIdle}" Click="OnChooseFolder" />
+                <Button Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="2" Classes="link" Content="{x:Static res:Text.FolderDefault}"
+                        IsVisible="{Binding IsCustomFolder}" Click="OnDefaultFolder" />
+              </Grid>
+            </Border>
+
+            <TextBlock Classes="caption" Text="{x:Static res:Text.MixCaption}" Margin="0,8,0,0" />
+            <Border Classes="card">
+              <StackPanel Spacing="10">
+                <TextBlock Text="{x:Static res:Text.FilesHint}" TextWrapping="Wrap" FontSize="12" Foreground="#A9A397" />
+                <CheckBox Content="{x:Static res:Text.SaveMono}" IsChecked="{Binding SaveMono, Mode=TwoWay}" IsEnabled="{Binding IsIdle}" />
+                <StackPanel Spacing="8" IsVisible="{Binding SaveMono}">
+                  <TextBlock Text="{x:Static res:Text.MixHint}" TextWrapping="Wrap" FontSize="12" Foreground="#A9A397" />
+                  <Grid ColumnDefinitions="22,*,52" ColumnSpacing="10">
+                    <app:Icon Kind="mic.fill" Foreground="#D6B35C" Width="18" Height="18" VerticalAlignment="Center" />
+                    <Slider Grid.Column="1" Classes="volume gold" Minimum="0.25" Maximum="2" Value="{Binding MicrophoneVolume, Mode=TwoWay}"
+                            SmallChange="0.05" LargeChange="0.25" AutomationProperties.Name="{x:Static res:Text.You}" />
+                    <TextBlock Grid.Column="2" Text="{Binding MicrophoneVolumeLabel}" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                  </Grid>
+                  <Grid ColumnDefinitions="22,*,52" ColumnSpacing="10">
+                    <app:Icon Kind="speaker.wave.2" Foreground="#7FB0E8" Width="18" Height="18" VerticalAlignment="Center" />
+                    <Slider Grid.Column="1" Classes="volume blue" Minimum="0.25" Maximum="2" Value="{Binding SystemVolume, Mode=TwoWay}"
+                            SmallChange="0.05" LargeChange="0.25" AutomationProperties.Name="{x:Static res:Text.SystemAudio}" />
+                    <TextBlock Grid.Column="2" Text="{Binding SystemVolumeLabel}" FontSize="12" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                  </Grid>
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <TextBlock Classes="caption" Text="ПРОВЕРКА ЗАПИСИ" Margin="0,8,0,0" />
+            <Border CornerRadius="14" Padding="14" Background="#0AFFFFFF" BorderBrush="#17FFFFFF" BorderThickness="1"
+                    BoxShadow="0 10 28 0 #73000000">
+              <StackPanel Spacing="12">
+                <TextBlock Text="{Binding TestStatus}" TextWrapping="Wrap" FontSize="12" Foreground="#A9A397" />
+                <Grid ColumnDefinitions="22,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="4">
+                  <app:Icon Kind="mic.fill" Foreground="#D6B35C" Width="18" Height="18" VerticalAlignment="Center" />
+                  <ProgressBar Grid.Column="1" Classes="meter" Value="{Binding MicLevel}" Foreground="#D6B35C" />
+  <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasResult}">
+                    <Panel Width="14" Height="14" Margin="0,1,0,0">
+                      <app:Icon Kind="checkmark.circle" Foreground="#8FD19E" IsVisible="{Binding MicHeard}" />
+                      <app:Icon Kind="exclamationmark.circle" Foreground="#F0D48A" IsVisible="{Binding !MicHeard}" />
+                    </Panel>
+                    <TextBlock Classes="result" Classes.ok="{Binding MicHeard}" Text="{Binding MicResult}" FontSize="12" TextWrapping="Wrap" MaxWidth="290" />
+                  </StackPanel>
+                </Grid>
+                <Grid ColumnDefinitions="22,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="4">
+                  <app:Icon Kind="speaker.wave.2" Foreground="#7FB0E8" Width="18" Height="18" VerticalAlignment="Center" />
+                  <ProgressBar Grid.Column="1" Classes="meter" Value="{Binding SystemLevel}" Foreground="#7FB0E8" />
+  <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasResult}">
+                    <Panel Width="14" Height="14" Margin="0,1,0,0">
+                      <app:Icon Kind="checkmark.circle" Foreground="#8FD19E" IsVisible="{Binding SystemHeard}" />
+                      <app:Icon Kind="exclamationmark.circle" Foreground="#F0D48A" IsVisible="{Binding !SystemHeard}" />
+                    </Panel>
+                    <TextBlock Classes="result" Classes.ok="{Binding SystemHeard}" Text="{Binding SystemResult}" FontSize="12" TextWrapping="Wrap" MaxWidth="290" />
+                  </StackPanel>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                  <Button Classes="pill" Content="{x:Static res:Text.SelfTestRun}" IsEnabled="{Binding CanTest}" Click="OnRunTest" />
+                  <Button Classes="pill" IsVisible="{Binding CanListen}" Click="OnListen" ToolTip.Tip="{x:Static res:Text.ListenHint}">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <app:Icon Kind="play.fill" Foreground="#ECE8DF" Width="16" Height="16" VerticalAlignment="Center" />
+                      <TextBlock Text="{x:Static res:Text.Listen}" VerticalAlignment="Center" />
+                    </StackPanel>
+                  </Button>
+                </StackPanel>
+              </StackPanel>
+            </Border>
           </StackPanel>
-        </Grid>
+        </ScrollViewer>
       </DockPanel>
     </Border>
   </Border>

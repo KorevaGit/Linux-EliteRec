@@ -1,0 +1,69 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="using:EliteRec.App"
+        xmlns:res="using:EliteRec.App.Resources"
+        x:Class="EliteRec.App.TitleWindow"
+        Title="{x:Static res:Text.SaveRecording}" Width="400" Height="200" CanResize="False" CanMinimize="False"
+        Background="Transparent" TransparencyLevelHint="Transparent" WindowDecorations="None" Foreground="#ECE8DF"
+        WindowStartupLocation="CenterOwner" Topmost="True" Icon="avares://EliteRec.App/Assets/eliterec.png">
+  <!-- После «Стоп»: имя файла и поле, куда дописать название (docs/PLAN.md, «Имя файла»). Пустое поле — имя как есть. -->
+  <Window.Styles>
+    <Style Selector="Border.name">
+      <Setter Property="Height" Value="42" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Background" Value="#0FFFFFFF" />
+      <Setter Property="BorderBrush" Value="#99D6B35C" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="TextBox.title">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="FontFamily" Value="monospace" />
+      <Setter Property="FontSize" Value="13" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="Foreground" Value="#ECE8DF" />
+      <Setter Property="CaretBrush" Value="#D6B35C" />
+    </Style>
+    <Style Selector="TextBox.title:focus /template/ Border#border"><Setter Property="Background" Value="Transparent" /><Setter Property="BorderThickness" Value="0" /></Style>
+    <Style Selector="TextBox.title:pointerover /template/ Border#border"><Setter Property="Background" Value="Transparent" /></Style>
+    <Style Selector="Button.pill">
+      <Setter Property="Height" Value="40" />
+      <Setter Property="CornerRadius" Value="20" />
+      <Setter Property="Padding" Value="18,0" />
+      <Setter Property="Background" Value="#0AFFFFFF" />
+      <Setter Property="BorderBrush" Value="#1FFFFFFF" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="#ECE8DF" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.pill:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#1AFFFFFF" /></Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#D6B35C" />
+      <Setter Property="Foreground" Value="#121315" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#E6C470" /></Style>
+  </Window.Styles>
+
+  <Border Classes="frame">
+    <Border Classes="frame-inner">
+      <DockPanel>
+        <app:TitleBar DockPanel.Dock="Top" />
+        <StackPanel Margin="22,10,22,20" Spacing="14">
+          <TextBlock Text="{x:Static res:Text.TitleCaption}" FontSize="11" FontWeight="Bold" LetterSpacing="1" Foreground="#8C877C" />
+          <!-- Имя файла как есть, дальше — поле, куда дописать название: видно, что именно получится -->
+          <Border Classes="name">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+              <TextBlock Name="StampText" FontFamily="monospace" FontSize="13" Foreground="#A9A397" VerticalAlignment="Center" Margin="12,0,0,0" />
+              <TextBox Grid.Column="1" Name="TitleBox" Classes="title" MaxLength="80" AutomationProperties.Name="{x:Static res:Text.TitleCaption}" />
+              <TextBlock Grid.Column="2" Name="ExtensionText" FontFamily="monospace" FontSize="13" Foreground="#6D685E" VerticalAlignment="Center" Margin="0,0,12,0" />
+            </Grid>
+          </Border>
+          <Button Name="SaveButton" Classes="pill primary" Content="{x:Static res:Text.TitleSave}" IsDefault="True" Click="OnSave" HorizontalAlignment="Right" />
+        </StackPanel>
+      </DockPanel>
+    </Border>
+  </Border>
+</Window>

@@ -3,7 +3,8 @@ using EliteRec.Core.Recording;
 namespace EliteRec.Encoding;
 
 /// <summary>
-/// Пара файлов записи: микс моно и стерео L=микрофон / R=система, в MP3, FLAC, Opus или WAV.
+/// Файлы записи в MP3, FLAC, Opus или WAV: стерео L=микрофон / R=система — всегда, под обычным именем
+/// (его отправляют на расшифровку); общий моно-микс — по желанию, с суффиксом <c>_mono</c>.
 /// Пока идёт запись, файлы скрыты (<c>.имя.mp3.part</c>) и каждые 5 с сбрасываются на диск;
 /// после падения их подбирает <see cref="RecordingRecovery"/>. Нормальное завершение
 /// дописывает хвост кодера и переименовывает части в итоговые файлы.
@@ -11,24 +12,28 @@ namespace EliteRec.Encoding;
 public sealed class RecordingSink : IRecordingSink
 {
     private const long SyncFrames = SynchronizedAudioMixer.SampleRate * 5L;
-    private readonly Part _mix, _stereo;
+    private readonly Part _stereo;
+    private readonly Part? _mono;
     private readonly string _eventsPath;
     private long _sinceSync;
     private bool _disposed;
     public RecordingFiles Files { get; }
     public long Frames { get; private set; }
 
-    public RecordingSink(string basePath, RecordingFormat format)
+    public RecordingSink(string basePath, RecordingFormat format, bool mono = false)
     {
         string full = Path.GetFullPath(basePath), extension = PartFormat.Extension(format);
         string folder = Path.GetDirectoryName(full)!, name = Path.GetFileName(full);
         Directory.CreateDirectory(folder);
-        Files = new(full + extension, full + RecordingRecovery.StereoSuffix + extension);
+        Files = new(full + extension, mono ? full + RecordingRecovery.MonoSuffix + extension : null);
         _eventsPath = full + EventsSuffix;
-        if (File.Exists(Files.MixPath) || File.Exists(Files.StereoPath)) throw new IOException($"Файл записи уже существует: {name}.");
-        _mix = new Part(PartPath(folder, name, extension), Files.MixPath, format, stereo: false);
-        try { _stereo = new Part(PartPath(folder, name + RecordingRecovery.StereoSuffix, extension), Files.StereoPath, format, stereo: true); }
-        catch { _mix.Abandon(); throw; }
+        if (Files.All.Any(File.Exists)) throw new IOException($"Файл записи уже существует: {name}.");
+        _stereo = new Part(PartPath(folder, name, extension), Files.StereoPath, format, stereo: true);
+        if (Files.MonoPath is { } monoPath)
+        {
+            try { _mono = new Part(PartPath(folder, name + RecordingRecovery.MonoSuffix, extension), monoPath, format, stereo: false); }
+            catch { _stereo.Abandon(); throw; }
+        }
     }
 
     /// <summary>Файл отметок рядом с записью; появляется только при первом событии.</summary>
@@ -53,14 +58,14 @@ public sealed class RecordingSink : IRecordingSink
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
         if (microphone.Length != system.Length || microphone.Length != mix.Length) throw new ArgumentException("Размеры каналов различаются.");
-        _mix.Write(mix, []);
         _stereo.Write(microphone, system);
+        _mono?.Write(mix, []);
         Frames += mix.Length;
         _sinceSync += mix.Length;
         if (_sinceSync >= SyncFrames)
         {
             _sinceSync = 0;
-            _mix.Sync(); _stereo.Sync();
+            _stereo.Sync(); _mono?.Sync();
         }
     }
 
@@ -68,8 +73,8 @@ public sealed class RecordingSink : IRecordingSink
     {
         if (_disposed) return;
         _disposed = true;
-        try { _mix.Complete(); }
-        finally { _stereo.Complete(); }
+        try { _stereo.Complete(); }
+        finally { _mono?.Complete(); }
     }
 
     private sealed class Part

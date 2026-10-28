@@ -14,10 +14,25 @@ public class FormatTests
         try
         {
             var files = Write(Path.Combine(root, "call"), RecordingFormat.Flac, 2);
-            Assert.EndsWith("call_stereo.flac", files.StereoPath);
-            Assert.Equal((1, 96000L), StreamInfo(files.MixPath));
+            Assert.EndsWith("call.flac", files.StereoPath);
+            Assert.EndsWith("call_mono.flac", files.MonoPath);
+            Assert.Equal((1, 96000L), StreamInfo(files.MonoPath!));
             Assert.Equal((2, 96000L), StreamInfo(files.StereoPath));
             Assert.Empty(Directory.GetFiles(root, ".*"));
+        }
+        finally { Directory.Delete(root, recursive: true); }
+    }
+
+    [Fact]
+    public void ByDefaultOnlyStereoFileUnderPlainName()
+    {
+        string root = Root();
+        try
+        {
+            using (var sink = new RecordingSink(Path.Combine(root, "call"), RecordingFormat.Wav))
+                sink.Write(new float[480], new float[480], new float[480]);
+            Assert.Equal([Path.Combine(root, "call.wav")], Directory.GetFiles(root));
+            Assert.Equal((ushort)2, BinaryPrimitives.ReadUInt16LittleEndian(File.ReadAllBytes(Path.Combine(root, "call.wav")).AsSpan(22)));
         }
         finally { Directory.Delete(root, recursive: true); }
     }
@@ -30,16 +45,17 @@ public class FormatTests
         {
             var files = Write(Path.Combine(root, "done"), RecordingFormat.Flac, 2);
             byte[] whole = File.ReadAllBytes(files.StereoPath);
-            File.WriteAllBytes(Path.Combine(root, ".torn_stereo.flac.part"), whole[..^100]); // оборван посреди кадра
-            File.WriteAllBytes(Path.Combine(root, ".torn.flac.part"), File.ReadAllBytes(files.MixPath)); // целый
+            File.WriteAllBytes(Path.Combine(root, ".torn.flac.part"), whole[..^100]); // стерео оборван посреди кадра
+            File.WriteAllBytes(Path.Combine(root, ".torn_mono.flac.part"), File.ReadAllBytes(files.MonoPath!)); // моно целый
 
             var found = Assert.Single(RecordingRecovery.Find(root, DateTime.UtcNow.AddMinutes(1)));
             Assert.Equal(RecordingFormat.Flac, found.Format);
             Assert.InRange(found.Duration.TotalSeconds, 1.95, 2.05);
 
             var saved = RecordingRecovery.Recover(found);
-            Assert.Equal(File.ReadAllBytes(files.MixPath), File.ReadAllBytes(saved[0]));
-            byte[] cut = File.ReadAllBytes(saved[1]);
+            Assert.Equal([Path.Combine(root, "torn.flac"), Path.Combine(root, "torn_mono.flac")], saved);
+            Assert.Equal(File.ReadAllBytes(files.MonoPath!), File.ReadAllBytes(saved[1]));
+            byte[] cut = File.ReadAllBytes(saved[0]);
             Assert.InRange(cut.Length, whole.Length - 20000, whole.Length - 101);
             Assert.True(cut.AsSpan().SequenceEqual(whole.AsSpan(0, cut.Length)));
             Assert.Equal(0xff, whole[cut.Length]); // обрезано ровно по началу последнего кадра
@@ -58,10 +74,10 @@ public class FormatTests
             byte[] torn = File.ReadAllBytes(files.StereoPath);
             BinaryPrimitives.WriteUInt32LittleEndian(torn.AsSpan(4), 36); // как после сбоя: размеры ещё нулевые
             BinaryPrimitives.WriteUInt32LittleEndian(torn.AsSpan(40), 0);
-            File.WriteAllBytes(Path.Combine(root, ".torn_stereo.wav.part"), [.. torn, 1, 2, 3]);
+            File.WriteAllBytes(Path.Combine(root, ".torn.wav.part"), [.. torn, 1, 2, 3]);
 
             var found = Assert.Single(RecordingRecovery.Find(root, DateTime.UtcNow.AddMinutes(1)));
-            Assert.Null(found.MixPart);
+            Assert.Null(found.MonoPart);
             Assert.Equal(1.0, found.Duration.TotalSeconds, 3);
             byte[] fixedWav = File.ReadAllBytes(Assert.Single(RecordingRecovery.Recover(found)));
             Assert.Equal(File.ReadAllBytes(files.StereoPath), fixedWav);
@@ -102,7 +118,7 @@ public class FormatTests
 
     private static RecordingFiles Write(string basePath, RecordingFormat format, int seconds)
     {
-        using var sink = new RecordingSink(basePath, format);
+        using var sink = new RecordingSink(basePath, format, mono: true);
         float[] mic = new float[SynchronizedAudioMixer.BlockFrames], sys = new float[mic.Length], mix = new float[mic.Length];
         for (int block = 0; block < seconds * 100; block++)
         {

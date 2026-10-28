@@ -52,7 +52,7 @@ public sealed class MainPanelModel : INotifyPropertyChanged
     {
         RecordingState.Recording => Text.Get("RecordingNotice"),
         RecordingState.Paused => Text.Get("PausedNotice"),
-        RecordingState.Preview when _recording?.Files is { } files => Text.Get("Saved") + " " + Path.GetFileName(files.MixPath),
+        RecordingState.Preview when (_saved ?? _recording?.Files) is { } files => Text.Get("Saved") + " " + Path.GetFileName(files.StereoPath),
         RecordingState.Preview => Text.Get("LivePreview"),
         _ => Text.Get("AwaitingAudio"),
     });
@@ -100,13 +100,14 @@ public sealed class MainPanelModel : INotifyPropertyChanged
     /// Текст в окне — только по делу (макет 6: минимум текста): предупреждение, «Сохранено …» после
     /// записи или состояние, пока звука нет (подключение, устройства недоступны). Иначе всё говорит волна.
     /// </summary>
-    public string? Notice => IsWarning || _recording?.Files is not null ? RecordingHint : _recording is null ? Status : null;
+    public string? Notice => IsWarning || (_saved ?? _recording?.Files) is not null ? RecordingHint : _recording is null ? Status : null;
     public bool HasNotice => Notice is not null;
     public string MicrophoneLabel => _microphone?.Title ?? "";
     public string OutputLabel => _output?.Title ?? "";
 
     public void UpdateRecording(RecordingSnapshot? recording, bool busy = false)
     {
+        if (recording?.State == RecordingState.Recording) _saved = null; // новая запись — прежнее «Сохранено» неактуально
         _recording = recording; _busy = busy;
         if (recording is not null)
             Wave.Add(_clock.Elapsed.TotalSeconds, recording.MicrophonePeak, recording.SystemPeak, recording.State == RecordingState.Paused);
@@ -123,6 +124,26 @@ public sealed class MainPanelModel : INotifyPropertyChanged
         get => Formats.Single(f => f.Value == Format);
         set { if (value is not null) Format = value.Value; }
     }
+    /// <summary>Настройки из окна настроек — сохраняются одной записью.</summary>
+    public void ApplySettings(RecordingFormat format, string? folder, bool saveMono, double microphoneVolume, double systemVolume)
+    {
+        if (!CanChooseDevices) return;
+        _preferences = _preferences with { Format = format.ToString().ToLowerInvariant(), Folder = folder, SaveMono = saveMono,
+            MicrophoneVolume = microphoneVolume, SystemVolume = systemVolume };
+        Save();
+        foreach (string property in new[] { nameof(Format), nameof(FormatChoice), nameof(RecordingHint), nameof(Notice), nameof(HasNotice), nameof(SettingsError) })
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+    }
+
+    /// <summary>Файлы сохранённой записи после переименования — для «Сохранено: …».</summary>
+    public void SetSaved(RecordingFiles files)
+    {
+        _saved = files;
+        foreach (string property in new[] { nameof(RecordingHint), nameof(Notice), nameof(HasNotice) })
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+    }
+    private RecordingFiles? _saved;
+
     public RecordingFormat Format
     {
         get => Enum.TryParse(_preferences.Format, ignoreCase: true, out RecordingFormat format) && Enum.IsDefined(format)

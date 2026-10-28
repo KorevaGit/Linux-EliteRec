@@ -21,13 +21,55 @@ public sealed class SettingsModel : INotifyPropertyChanged
     private string? _testFile, _testError;
     private int _secondsLeft;
 
-    public SettingsModel(RecordingFormat format, bool testAvailable)
+    public SettingsModel(RecordingFormat format, bool testAvailable, string? folder = null, string defaultFolder = "",
+        double microphoneVolume = 1, double systemVolume = 1)
     {
         Formats = Enum.GetValues<RecordingFormat>()
             .Select(f => new FormatItem(f, f.ToString().ToUpperInvariant(), Text.Get("Format" + f))).ToArray();
         _selected = Formats.Single(f => f.Value == format);
         _testAvailable = testAvailable;
+        _folder = folder; DefaultFolder = defaultFolder;
+        _microphoneVolume = Volume(microphoneVolume); _systemVolume = Volume(systemVolume);
     }
+
+    public const double MinVolume = .25, MaxVolume = 2;
+    private bool _saveMono;
+
+    /// <summary>Кроме стерео-файла писать и общий моно-файл (громкости сторон — только для него).</summary>
+    public bool SaveMono
+    {
+        get => _saveMono;
+        set { _saveMono = value; Changed(nameof(SaveMono)); }
+    }
+    private string? _folder;
+    private double _microphoneVolume, _systemVolume;
+
+    /// <summary>Своя папка записей; null — по умолчанию («Записи EliteRec» на рабочем столе).</summary>
+    public string? Folder
+    {
+        get => _folder;
+        set { _folder = string.IsNullOrWhiteSpace(value) ? null : value; Changed(nameof(Folder), nameof(FolderLabel), nameof(IsCustomFolder)); }
+    }
+    public string DefaultFolder { get; }
+    public string FolderLabel => _folder ?? DefaultFolder;
+    public bool IsCustomFolder => _folder is not null;
+
+    /// <summary>Громкость стороны в общем файле, 1 — как есть (¼…2, т. е. −12…+6 дБ).</summary>
+    public double MicrophoneVolume
+    {
+        get => _microphoneVolume;
+        set { _microphoneVolume = Volume(value); Changed(nameof(MicrophoneVolume), nameof(MicrophoneVolumeLabel)); }
+    }
+    public double SystemVolume
+    {
+        get => _systemVolume;
+        set { _systemVolume = Volume(value); Changed(nameof(SystemVolume), nameof(SystemVolumeLabel)); }
+    }
+    public string MicrophoneVolumeLabel => Percent(_microphoneVolume);
+    public string SystemVolumeLabel => Percent(_systemVolume);
+
+    private static double Volume(double value) => double.IsFinite(value) ? Math.Round(Math.Clamp(value, MinVolume, MaxVolume), 2) : 1;
+    private static string Percent(double value) => ((int)Math.Round(value * 100)).ToString(CultureInfo.CurrentCulture) + " %";
 
     public event PropertyChangedEventHandler? PropertyChanged;
     public IReadOnlyList<FormatItem> Formats { get; }

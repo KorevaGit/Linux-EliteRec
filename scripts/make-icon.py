@@ -6,6 +6,8 @@
 волна под короной двухцветная, как в главном окне: левая половина золотая (Вы),
 правая голубая (Система), центральная капсула разделена по оси.
 Пишет src/EliteRec.App/Assets/eliterec.png (512) и docs/brand/eliterec-<размер>.png.
+Значки трея — только волна: двухцветная вне записи, красная в записи, жёлтая на паузе или
+при предупреждении: Assets/tray-idle.png, tray-recording.png, tray-attention.png.
 """
 from pathlib import Path
 from PIL import Image, ImageDraw
@@ -61,6 +63,27 @@ def main():
     icon.resize((512, 512), Image.LANCZOS).save(ROOT / "src/EliteRec.App/Assets/eliterec.png")
     for size in (16, 32, 48, 64, 128, 256, 512):
         icon.resize((size, size), Image.LANCZOS).save(ROOT / f"docs/brand/eliterec-{size}.png")
+
+    # Трей — только волна из-под короны на прозрачном фоне: вне записи двухцветная, как в окне,
+    # в записи красная, на паузе или при предупреждении жёлтая.
+    bars = Image.new("L", (w, h), 0)
+    left_leg = round((412 - box[0]) * scale)  # левая нога короны — зеркально правой
+    ImageDraw.Draw(bars).rectangle((left_leg, wave_top, leg, h), fill=255)
+    ImageDraw.Draw(bars).rectangle((wave_left, low, left_leg, h), fill=255)
+    ImageDraw.Draw(bars).rectangle((leg, low, wave_right, h), fill=255)
+    bars = Image.composite(mask, Image.new("L", (w, h), 0), bars)
+    box = bars.getbbox()
+    side = max(box[2] - box[0], box[3] - box[1]) + round(S * .02)
+    def tray(fill_left, fill_right):
+        canvas = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+        canvas.paste(Image.new("RGBA", (w, h), fill_left + (255,)), (0, 0), Image.composite(bars, Image.new("L", (w, h), 0), Image.eval(blue, lambda v: 255 - v)))
+        canvas.paste(Image.new("RGBA", (w, h), fill_right + (255,)), (0, 0), blue_mask)
+        square = Image.new("RGBA", (side, side), (0, 0, 0, 0))
+        square.paste(canvas.crop(box), ((side - (box[2] - box[0])) // 2, (side - (box[3] - box[1])) // 2))
+        return square.resize((64, 64), Image.LANCZOS)
+    tray((222, 186, 100), (127, 176, 232)).save(ROOT / "src/EliteRec.App/Assets/tray-idle.png")
+    tray((224, 90, 71), (224, 90, 71)).save(ROOT / "src/EliteRec.App/Assets/tray-recording.png")
+    tray((240, 212, 138), (240, 212, 138)).save(ROOT / "src/EliteRec.App/Assets/tray-attention.png")
 
 
 if __name__ == "__main__":

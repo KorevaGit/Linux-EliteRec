@@ -216,6 +216,24 @@ public class PanelTests
     }
 
     [Fact]
+    public void WaveIgnoresSteadyBackgroundAndShowsSpeechAboveIt()
+    {
+        // Как в записи 2026-10-28_10-31: фон гарнитуры около −30 дБ, речь — пики около −6 дБ.
+        var wave = new LevelWave();
+        float noise = .03f, speech = .5f;
+        double t = 0;
+        for (int i = 0; i < 200; i++, t += .05) wave.Add(t, noise * (1 + .2f * (i % 3)), 0, false); // 10 с молчания
+        Assert.All(wave.LeftBars, bar => Assert.True(bar.Height < LevelWave.BarHeight * .1, $"молчание рисуется на {bar.Height}"));
+        for (int i = 0; i < 10; i++, t += .05) wave.Add(t, speech, 0, false);
+        Assert.True(wave.LeftBars[0].Height > LevelWave.BarHeight * .6, $"речь рисуется лишь на {wave.LeftBars[0].Height}");
+
+        var floor = new LevelWave.NoiseFloor();
+        for (int i = 0; i < 400; i++) floor.Level(speech, .05); // 20 с сплошной громкой речи
+        Assert.Equal(LevelWave.NoiseFloor.MaxDb, floor.Db); // фон не поднимается до речи
+        Assert.True(floor.Level(speech, .05) > .5);
+    }
+
+    [Fact]
     public void WaveRisesAtAxisFirstAndSpreadsOutward()
     {
         var wave = new LevelWave();
@@ -237,6 +255,35 @@ public class PanelTests
         Assert.Equal("JBL Quantum 350", new DeviceOption("a", "t", "Микрофон (JBL Quantum 350)").Chip);
         Assert.Equal("USB Headset", new DeviceOption("a", "t", "USB Headset").Chip);
         Assert.Equal("Системный (недоступен)", new DeviceOption(null, "Системный (недоступен)").Chip);
+    }
+
+    [AvaloniaFact]
+    public void LongDeviceNamesStayClearOfTimer()
+    {
+        var model = new MainPanelModel(new("mic", null), _ => { });
+        model.Apply(new AudioDeviceSnapshot(
+            [new("mic", "Микрофон (JBL Quantum 350 Wireless Моно)", AudioDeviceDirection.Capture)],
+            [new("out", "Динамики (Встроенное аудио Аналоговый стерео)", AudioDeviceDirection.Render, CaptureSourceId: "monitor")], "mic", "out"));
+        var window = new MainWindow(model) { Width = 320 };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            var timer = window.GetVisualDescendants().OfType<Border>().Single(b => b.Height == 32);
+            double timerLeft = timer.TranslatePoint(new(0, 0), window)!.Value.X, timerRight = timerLeft + timer.Bounds.Width;
+            foreach (var name in window.GetVisualDescendants().OfType<TextBlock>().Where(t => t.Text?.StartsWith("JBL") == true || t.Text?.StartsWith("Встроенное") == true))
+            {
+                double left = name.TranslatePoint(new(0, 0), window)!.Value.X;
+                Assert.True(left + name.Bounds.Width <= timerLeft || left >= timerRight, $"{name.Text}: {left}..{left + name.Bounds.Width}, таймер {timerLeft}..{timerRight}");
+            }
+            var chevrons = window.GetVisualDescendants().OfType<Icon>().Where(i => i.Kind == "chevron.down").ToArray();
+            Assert.Equal(2, chevrons.Length);
+            double chevronRight = chevrons.Select(c => c.TranslatePoint(new(c.Bounds.Width, 0), window)!.Value.X).Min();
+            Assert.True(chevronRight <= timerLeft - 4, $"шеврон {chevronRight}, таймер {timerLeft}");
+            using var frame = window.CaptureRenderedFrame();
+            frame!.Save(Path.Combine(AppContext.BaseDirectory, "snapshots", "r5-narrow.png"), PngBitmapEncoderOptions.Default);
+        }
+        finally { window.Close(); }
     }
 
     [Fact]
@@ -269,7 +316,7 @@ public class PanelTests
     [AvaloniaFact]
     public void SettingsWindowRenders()
     {
-        var settings = new SettingsModel(RecordingFormat.Mp3, testAvailable: true);
+        var settings = new SettingsModel(RecordingFormat.Mp3, testAvailable: true, null, "/home/manager/Рабочий стол/Записи EliteRec");
         var window = new SettingsWindow(settings, null);
         try
         {
@@ -279,6 +326,70 @@ public class PanelTests
             string folder = Path.Combine(AppContext.BaseDirectory, "snapshots");
             Directory.CreateDirectory(folder);
             frame!.Save(Path.Combine(folder, "r5-settings.png"), PngBitmapEncoderOptions.Default);
+        }
+        finally { window.Close(); }
+    }
+
+    [Fact]
+    public void TrayIsGrayIdleRedWhileRecordingYellowOnPauseOrWarning()
+    {
+        var model = new MainPanelModel(new(), _ => { });
+        model.Apply(Desk);
+        var stats = new SynchronizerStatistics(0, 0, 0, 0, 0, 0);
+        model.UpdateRecording(new(RecordingState.Preview, 0, 0, 0, stats));
+        Assert.Equal(Tray.Look.Idle, Tray.LookFor(model));
+        model.UpdateRecording(new(RecordingState.Recording, 48000, 0, 0, stats));
+        Assert.Equal(Tray.Look.Recording, Tray.LookFor(model));
+        model.UpdateRecording(new(RecordingState.Paused, 48000, 0, 0, stats));
+        Assert.Equal(Tray.Look.Attention, Tray.LookFor(model));
+        model.UpdateRecording(new(RecordingState.Recording, 48000, 0, 0, stats));
+        model.SetRoute(new RecordingRoute("builtin", "monitor", MicrophoneFallback: true));
+        Assert.Equal(Tray.Look.Attention, Tray.LookFor(model)); // гарнитура пропала — пишем, но с предупреждением
+    }
+
+    [Fact]
+    public void SettingsSaveFolderAndMixVolumesInOneWrite()
+    {
+        var settings = new SettingsModel(RecordingFormat.Mp3, false, null, "/home/u/Рабочий стол/Записи EliteRec", 1, 1);
+        Assert.Equal("/home/u/Рабочий стол/Записи EliteRec", settings.FolderLabel);
+        Assert.False(settings.IsCustomFolder);
+        settings.Folder = "/data/calls";
+        settings.MicrophoneVolume = 5; // вне диапазона — до +6 дБ
+        settings.SystemVolume = .5;
+        Assert.Equal(SettingsModel.MaxVolume, settings.MicrophoneVolume);
+        Assert.Equal("50 %", settings.SystemVolumeLabel);
+
+        List<DevicePreferences> saved = [];
+        var model = new MainPanelModel(new(), saved.Add);
+        model.ApplySettings(RecordingFormat.Opus, settings.Folder, saveMono: true, settings.MicrophoneVolume, settings.SystemVolume);
+        var written = Assert.Single(saved);
+        Assert.Equal(("opus", "/data/calls", true, 2.0, .5), (written.Format, written.Folder, written.SaveMono, written.MicrophoneVolume, written.SystemVolume));
+    }
+
+    [Fact]
+    public void SavedNoticeShowsRenamedFileUntilNextRecording()
+    {
+        var model = new MainPanelModel(new(), _ => { });
+        model.Apply(Desk);
+        var stats = new SynchronizerStatistics(0, 0, 0, 0, 0, 0);
+        model.UpdateRecording(new(RecordingState.Preview, 0, 0, 0, stats, Files: new("/r/2026-10-26_14-30.mp3")));
+        model.SetSaved(new("/r/2026-10-26_14-30_Иванов.mp3"));
+        Assert.Contains("2026-10-26_14-30_Иванов.mp3", model.Notice);
+        model.UpdateRecording(new(RecordingState.Recording, 0, 0, 0, stats));
+        model.UpdateRecording(new(RecordingState.Preview, 0, 0, 0, stats));
+        Assert.Null(model.Notice);
+    }
+
+    [AvaloniaFact]
+    public void TitleDialogRenders()
+    {
+        var window = new TitleWindow("2026-10-28_10-32.mp3");
+        try
+        {
+            window.Show();
+            Assert.Equal("2026-10-28_10-32_", window.FindControl<TextBlock>("StampText")!.Text);
+            using var frame = window.CaptureRenderedFrame();
+            frame!.Save(Path.Combine(AppContext.BaseDirectory, "snapshots", "r5-title.png"), PngBitmapEncoderOptions.Default);
         }
         finally { window.Close(); }
     }

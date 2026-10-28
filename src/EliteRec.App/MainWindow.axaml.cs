@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 using EliteRec.App.Resources;
@@ -25,6 +26,8 @@ public partial class MainWindow : Window
     private bool _closing, _allowClose, _busy, _followingDevices;
     private DateTime _followRetry, _silentProbe;
     private string? _silentMicrophone;
+    private Tray? _tray;
+    private bool _quitting, _toldAboutTray;
     private const double SilenceLimit = 3;
     private MainPanelModel Model => (MainPanelModel)DataContext!;
 
@@ -48,12 +51,39 @@ public partial class MainWindow : Window
         _meterTimer.Start();
         Closing += OnClosing;
         FindIncompleteRecordings();
+        _ = StartTrayAsync();
+    }
+
+    // Трей — только если панель его покажет (как в EliteSIP): иначе спрятанное окно не вернуть.
+    private async Task StartTrayAsync()
+    {
+        if (!await Desktop.TrayHostAvailableAsync() || _closing) return;
+        _tray = new Tray(Model,
+            start: () => OnStartRecording(null, new RoutedEventArgs()),
+            pause: () => OnPauseRecording(null, new RoutedEventArgs()),
+            stop: () => OnStopRecording(null, new RoutedEventArgs()),
+            show: ShowFromTray,
+            folder: () => OnOpenFolder(null, new RoutedEventArgs()),
+            quit: () => { _quitting = true; Close(); });
+    }
+
+    private void ShowFromTray()
+    {
+        Show();
+        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+        Activate();
     }
 
     internal MainWindow(MainPanelModel model)
     {
         InitializeComponent();
         DataContext = model;
+        foreach (var grip in ResizeGrips.Children.OfType<Border>())
+            grip.PointerPressed += (_, e) =>
+            {
+                if (e.GetCurrentPoint(grip).Properties.IsLeftButtonPressed && Enum.TryParse(grip.Tag as string, out WindowEdge edge))
+                    BeginResizeDrag(edge, e);
+            };
         model.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(MainPanelModel.Microphone) or nameof(MainPanelModel.Microphones)
@@ -167,22 +197,38 @@ public partial class MainWindow : Window
         string.Format(CultureInfo.CurrentCulture, Text.Get(key), device ?? Text.Get("NoSource"))
         + (fallback ? " " + Text.Get("FallbackNote") : silent ? " " + Text.Get("SilentNote") : "");
 
-    private async void OnStartRecording(object? sender, RoutedEventArgs e) => await RunCommandAsync(async session =>
+    private async void OnStartRecording(object? sender, RoutedEventArgs e)
     {
-        _silentMicrophone = null;
-        string name = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss") + "_" + Guid.NewGuid().ToString("N")[..6];
-        var format = Model.Format;
-        await session.StartRecordingAsync(() => new RecordingSink(Path.Combine(RecordingsFolder(), name), format));
-    });
+        bool started = false;
+        await RunCommandAsync(async session =>
+        {
+            _silentMicrophone = null;
+            var format = Model.Format;
+            string folder = RecordingsFolder();
+            Directory.CreateDirectory(folder);
+            string basePath = RecordingNames.NewBase(folder, DateTime.Now, format);
+            var preferences = Model.Preferences;
+            session.SetMixLevels((float)preferences.MicrophoneVolume, (float)preferences.SystemVolume);
+            await session.StartRecordingAsync(() => new RecordingSink(basePath, format, mono: preferences.SaveMono));
+            started = true;
+        });
+        // План: «При старте записи — „Идёт запись — предупредите клиента“».
+        if (started) await Desktop.NotifyAsync(Text.Get("RecordingStartedTitle"), Text.Get("RecordingStartedBody"), IconFile());
+    }
 
     private async void OnOpenSettings(object? sender, RoutedEventArgs e)
     {
-        var settings = new SettingsModel(Model.Format, Model.CanStartRecording);
+        var preferences = Model.Preferences;
+        var settings = new SettingsModel(Model.Format, Model.CanStartRecording, preferences.Folder, DefaultRecordingsFolder(),
+            preferences.MicrophoneVolume, preferences.SystemVolume) { SaveMono = preferences.SaveMono };
         string folder = Path.Combine(Path.GetTempPath(), "EliteRec-check-" + Guid.NewGuid().ToString("N")[..8]);
         try
         {
             if (await new SettingsWindow(settings, s => RunSelfTestAsync(s, folder)).ShowDialog<bool>(this))
-                Model.Format = settings.SelectedFormat.Value;
+            {
+                Model.ApplySettings(settings.SelectedFormat.Value, settings.Folder, settings.SaveMono, settings.MicrophoneVolume, settings.SystemVolume);
+                FindIncompleteRecordings(); // в новой папке могут быть свои незавершённые записи
+            }
         }
         finally
         {
@@ -227,9 +273,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private void OnOpenFolder(object? sender, RoutedEventArgs e)
+    private void OnOpenFolder(object? sender, RoutedEventArgs e) => OpenFolder(RecordingsFolder());
+
+    private void OpenFolder(string folder)
     {
-        string folder = RecordingsFolder();
         try
         {
             Directory.CreateDirectory(folder);
@@ -239,7 +286,29 @@ public partial class MainWindow : Window
         { ShowError(ex.Message); }
     }
 
-    private static string RecordingsFolder()
+    /// <summary>Иконка для уведомлений: путь к файлу (avares:// сервер уведомлений не прочтёт), раз в кэш.</summary>
+    private static string? IconFile()
+    {
+        try
+        {
+            string cache = Environment.GetEnvironmentVariable("XDG_CACHE_HOME") is { Length: > 0 } c && Path.IsPathRooted(c)
+                ? c : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".cache");
+            string path = Path.Combine(cache, "EliteRec", "eliterec.png");
+            if (!File.Exists(path))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                using var source = Avalonia.Platform.AssetLoader.Open(new Uri("avares://EliteRec.App/Assets/eliterec.png"));
+                using var target = File.Create(path);
+                source.CopyTo(target);
+            }
+            return path;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return null; }
+    }
+
+    private string RecordingsFolder() => Model.Preferences.Folder ?? DefaultRecordingsFolder();
+
+    private static string DefaultRecordingsFolder()
     {
         string desktop = Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory);
         if (string.IsNullOrEmpty(desktop)) desktop = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Desktop");
@@ -274,7 +343,24 @@ public partial class MainWindow : Window
     private async void OnStopRecording(object? sender, RoutedEventArgs e)
     {
         await RunCommandAsync(session => session.StopRecordingAsync());
+        var files = _session?.Snapshot.Files;
         if (!_closing) { Model.Apply(_devices); await RefreshPreviewAsync(); }
+        if (files is null || _closing || !File.Exists(files.StereoPath)) return;
+        await SaveAsync(files);
+    }
+
+    /// <summary>
+    /// План: после «Стоп» — «Название записи (необязательно)» → сохранение → папка с выделенными
+    /// файлами, чтобы перетащить их в Битрикс. Запись уже на диске; название только дописывается в имя.
+    /// </summary>
+    private async Task SaveAsync(RecordingFiles files)
+    {
+        if (!IsVisible) ShowFromTray();
+        string? title = await new TitleWindow(Path.GetFileName(files.StereoPath)).ShowDialog<string?>(this);
+        try { files = RecordingNames.AddTitle(files, title); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { ShowError(ex.Message); }
+        Model.SetSaved(files);
+        if (!await Desktop.ShowFilesAsync(files.All)) OpenFolder(Path.GetDirectoryName(files.StereoPath)!);
     }
 
     private async Task RunCommandAsync(Func<IRecordingSession, Task> command)
@@ -299,6 +385,17 @@ public partial class MainWindow : Window
     {
         if (_allowClose) return;
         e.Cancel = true;
+        // С треем крестик прячет окно (запись продолжается); выходят через «Выход» в меню значка.
+        if (_tray is not null && !_quitting)
+        {
+            Hide();
+            if (!_toldAboutTray)
+            {
+                _toldAboutTray = true;
+                await Desktop.NotifyAsync(Text.Get("HiddenToTrayTitle"), Text.Get("HiddenToTrayBody"), IconFile());
+            }
+            return;
+        }
         if (_closing) return;
         _closing = true; _meterTimer.Stop(); _previewCancellation?.Cancel();
         await _previewGate.WaitAsync();
@@ -308,7 +405,7 @@ public partial class MainWindow : Window
             finally { if (_watch is not null) await _watch.DisposeAsync(); }
         }
         catch (Exception ex) { Console.Error.WriteLine(ex.Message); }
-        finally { _previewGate.Release(); _allowClose = true; Close(); }
+        finally { _previewGate.Release(); _tray?.Dispose(); _tray = null; _allowClose = true; Close(); }
     }
 
     private static MainPanelModel CreateModel()

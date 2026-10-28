@@ -38,7 +38,7 @@ try
     {
         await Task.Delay(750, cancelled.Token); // Прогрев временной шкалы до начала сохранения.
         var clock = Stopwatch.StartNew();
-        await session.StartRecordingAsync(() => new RecordingSink(path, format switch { "mp3" => RecordingFormat.Mp3, "flac" => RecordingFormat.Flac, "opus" => RecordingFormat.Opus, _ => RecordingFormat.Wav }));
+        await session.StartRecordingAsync(() => new RecordingSink(path, format switch { "mp3" => RecordingFormat.Mp3, "flac" => RecordingFormat.Flac, "opus" => RecordingFormat.Opus, _ => RecordingFormat.Wav }, mono: true)); // смоук-проверки сверяют и моно-микс
         bool paused = false, resumed = false;
         string microphone = Required("--source");
         string? fallback = values.GetValueOrDefault("--fallback-source");

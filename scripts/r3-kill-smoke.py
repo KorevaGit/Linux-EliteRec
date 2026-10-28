@@ -86,14 +86,14 @@ def main():
             os.kill(recorder.pid, signal.SIGKILL); recorder.wait()
         parts = sorted(p.name for p in directory.glob(".*.part"))
         ext = "." + options.format
-        assert parts == [".call" + ext + ".part", ".call_stereo" + ext + ".part"], parts
+        assert parts == [".call" + ext + ".part", ".call_mono" + ext + ".part"], parts
         early = json.loads(subprocess.check_output(["dotnet", str(DLL), "--recover", str(directory)], text=True))
         assert early == [], "свежие части не должны восстанавливаться"
         time.sleep(16)
         result = json.loads(subprocess.check_output(["dotnet", str(DLL), "--recover", str(directory)], text=True))
         assert len(result) == 1 and len(result[0]["Files"]) == 2, result
         assert not list(directory.glob(".*.part")), "части остались"
-        mix_path, stereo_path = directory / ("call" + ext), directory / ("call_stereo" + ext)
+        mix_path, stereo_path = directory / ("call_mono" + ext), directory / ("call" + ext)
         if options.format == "mp3":
             mix, stereo = (frames(mix_path, 3, 128) * 1152 / 48000, frames(stereo_path, 0, 192) * 1152 / 48000)
         elif options.format == "flac":

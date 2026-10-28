@@ -81,12 +81,15 @@ public sealed class SynchronizedAudioMixer
         }
     }
 
-    public static void Mix(ReadOnlySpan<float> microphone, ReadOnlySpan<float> system, Span<float> mix)
+    /// <param name="microphoneGain">Громкость микрофона в миксе (настройка «громкость микрофона / системы», по умолчанию 1:1).
+    /// Раздельные каналы стерео-файла не трогаются — они нужны расшифровке как есть.</param>
+    public static void Mix(ReadOnlySpan<float> microphone, ReadOnlySpan<float> system, Span<float> mix,
+        float microphoneGain = 1, float systemGain = 1)
     {
         if (microphone.Length != system.Length || mix.Length != microphone.Length) throw new ArgumentException("Размеры каналов различаются.");
         for (int i = 0; i < mix.Length; i++)
         {
-            double sum = microphone[i] + system[i];
+            double sum = microphone[i] * microphoneGain + system[i] * systemGain;
             // Мягкое колено: тихий сигнал не меняется; сумма не обрезается плоским потолком.
             double magnitude = Math.Abs(sum);
             mix[i] = (float)(magnitude <= .8 ? sum : Math.CopySign(.8 + .2 * Math.Tanh((magnitude - .8) / .2), sum));

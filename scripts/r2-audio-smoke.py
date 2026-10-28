@@ -39,7 +39,7 @@ def validate(base, seconds, pause_for):
     if report["Error"] is not None:
         raise RuntimeError(report["Error"])
     onsets = [[], []]
-    with wave.open(str(base) + "_stereo.wav", "rb") as stereo:
+    with wave.open(str(base) + ".wav", "rb") as stereo:
         assert stereo.getnchannels() == 2 and stereo.getframerate() == 48000 and stereo.getsampwidth() == 2
         frames = stereo.getnframes()
         assert abs(frames / 48000 - (seconds - pause_for)) < .15, frames / 48000
@@ -68,7 +68,7 @@ def validate(base, seconds, pause_for):
                     last[channel] = index
             index += 1
     assert min(peaks) > 5000, peaks
-    with wave.open(str(base) + ".wav", "rb") as mono:
+    with wave.open(str(base) + "_mono.wav", "rb") as mono:
         assert mono.getnchannels() == 1 and mono.getframerate() == 48000 and mono.getnframes() == frames
     # Отбрасываем первые/последние 2 с: старт/стоп могут обрезать один маркер.
     lags = [min(abs(a - b) for b in onsets[1]) for a in onsets[0] if 2 < a < frames / 48000 - 2]

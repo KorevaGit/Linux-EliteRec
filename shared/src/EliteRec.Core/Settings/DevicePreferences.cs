@@ -3,8 +3,12 @@ using System.Text.Json;
 namespace EliteRec.Core.Settings;
 
 // null — явно выбранное «Системный». Отсутствующий конкретный ID остаётся в настройках.
-// Format — формат записи (mp3/flac/wav); неизвестное значение приложение читает как mp3.
-public sealed record DevicePreferences(string? MicrophoneId = null, string? OutputId = null, string Format = "mp3");
+// Format — формат записи (mp3/flac/opus/wav); неизвестное значение приложение читает как mp3.
+// Folder — папка записей; null — «Записи EliteRec» на рабочем столе.
+// SaveMono — кроме стерео (L — микрофон, R — система) писать и общий моно-файл; по умолчанию нет.
+// MicrophoneVolume / SystemVolume — громкости сторон в общем моно-файле, 1 — как есть.
+public sealed record DevicePreferences(string? MicrophoneId = null, string? OutputId = null, string Format = "mp3",
+    string? Folder = null, double MicrophoneVolume = 1, double SystemVolume = 1, bool SaveMono = false);
 
 public sealed class DevicePreferencesStore(string path)
 {

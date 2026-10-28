@@ -8,6 +8,16 @@ public static class Text
     private static readonly ResourceManager Resources = new("EliteRec.App.Resources.Strings", typeof(Text).Assembly);
     public static string Get(string key) => Resources.GetString(key, CultureInfo.CurrentUICulture) ?? key;
     public static string You => Get(nameof(You));
+    public static string TitleCaption => Get(nameof(TitleCaption));
+    public static string TitleSave => Get(nameof(TitleSave));
+    public static string SaveRecording => Get(nameof(SaveRecording));
+    public static string FolderCaption => Get(nameof(FolderCaption));
+    public static string FolderChange => Get(nameof(FolderChange));
+    public static string FolderDefault => Get(nameof(FolderDefault));
+    public static string MixCaption => Get(nameof(MixCaption));
+    public static string MixHint => Get(nameof(MixHint));
+    public static string SaveMono => Get(nameof(SaveMono));
+    public static string FilesHint => Get(nameof(FilesHint));
     public static string Settings => Get(nameof(Settings));
     public static string SelfTest => Get(nameof(SelfTest));
     public static string SelfTestRun => Get(nameof(SelfTestRun));

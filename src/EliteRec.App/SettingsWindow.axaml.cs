@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.Platform.Storage;
 
 namespace EliteRec.App;
 
@@ -41,6 +42,18 @@ public partial class SettingsWindow : Window
         catch (InvalidOperationException) { }
         _player?.Dispose(); _player = null;
     }
+
+    private async void OnChooseFolder(object? sender, RoutedEventArgs e)
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        {
+            Title = EliteRec.App.Resources.Text.Get("FolderCaption"), AllowMultiple = false,
+            SuggestedStartLocation = await StorageProvider.TryGetFolderFromPathAsync(Model.FolderLabel),
+        });
+        if (folders.Count > 0 && folders[0].TryGetLocalPath() is { } path) Model.Folder = path;
+    }
+
+    private void OnDefaultFolder(object? sender, RoutedEventArgs e) => Model.Folder = null;
 
     private void OnCancel(object? sender, RoutedEventArgs e) => Close(false);
     private void OnSave(object? sender, RoutedEventArgs e) => Close(true);

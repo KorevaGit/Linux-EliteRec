@@ -2,7 +2,11 @@ namespace EliteRec.Core.Recording;
 
 public enum RecordingState { Preview, Recording, Paused, Faulted, Closed }
 
-public sealed record RecordingFiles(string MixPath, string StereoPath);
+/// <summary>Файлы записи: стерео (L — микрофон, R — система) всегда; общий моно — если включён в настройках.</summary>
+public sealed record RecordingFiles(string StereoPath, string? MonoPath = null)
+{
+    public IEnumerable<string> All => MonoPath is null ? [StereoPath] : [StereoPath, MonoPath];
+}
 public sealed record CaptureStatistics(long Holes, long Overflows, long UntimedFrames);
 /// <param name="MicrophoneSource">Текущий source канала; null — источника нет, канал пишется тишиной.</param>
 /// <param name="MicrophoneSilenceSeconds">Сколько секунд источник присылает ровно нули (цифровая тишина).</param>
@@ -37,4 +41,6 @@ public interface IRecordingSession : IAsyncDisposable
     /// и старый источник продолжает писать.
     /// </summary>
     Task<bool> SwitchSourceAsync(AudioChannel channel, string? source, string note, bool requireSound = false);
+    /// <summary>Громкости микрофона и системы в общем миксе (стерео-файл не меняется).</summary>
+    void SetMixLevels(float microphone, float system) { }
 }

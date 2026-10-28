@@ -42,6 +42,14 @@ public class RecordingTests
         Assert.InRange(output[2], -1, -.8f);
     }
 
+    [Fact]
+    public void MixLevelsScaleEachSideOnlyInMix()
+    {
+        float[] output = new float[1];
+        SynchronizedAudioMixer.Mix([.2f], [.2f], output, microphoneGain: .5f, systemGain: 2);
+        Assert.Equal(.5f, output[0], 6); // .2 × .5 + .2 × 2
+    }
+
     [Theory]
     [InlineData(300, -250)]
     [InlineData(-500, 400)]
@@ -93,11 +101,11 @@ public class RecordingTests
         string root = Path.Combine(Path.GetTempPath(), "eliterec-wav-" + Guid.NewGuid());
         try
         {
-            var sink = new RecordingSink(Path.Combine(root, "test"), RecordingFormat.Wav);
+            var sink = new RecordingSink(Path.Combine(root, "test"), RecordingFormat.Wav, mono: true);
             var files = sink.Files;
             sink.Write([.25f, -.25f], [-.5f, .5f], [-.25f, .25f]);
             sink.Dispose(); sink.Dispose();
-            byte[] mono = File.ReadAllBytes(files.MixPath), stereo = File.ReadAllBytes(files.StereoPath);
+            byte[] mono = File.ReadAllBytes(files.MonoPath!), stereo = File.ReadAllBytes(files.StereoPath);
             Assert.Equal(1, BinaryPrimitives.ReadInt16LittleEndian(mono.AsSpan(22)));
             Assert.Equal(2, BinaryPrimitives.ReadInt16LittleEndian(stereo.AsSpan(22)));
             Assert.Equal(48000, BinaryPrimitives.ReadInt32LittleEndian(stereo.AsSpan(24)));

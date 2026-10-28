@@ -3,19 +3,19 @@
         xmlns:app="using:EliteRec.App"
         xmlns:res="using:EliteRec.App.Resources"
         x:Class="EliteRec.App.MainWindow" x:DataType="app:MainPanelModel"
-        Title="EliteRec" Width="420" Height="592" MinWidth="380" MinHeight="572"
+        Title="EliteRec" Width="380" Height="520" MinWidth="320" MinHeight="420"
         Background="Transparent" TransparencyLevelHint="Transparent" WindowDecorations="None" Foreground="#ECE8DF"
         WindowStartupLocation="CenterScreen" Icon="avares://EliteRec.App/Assets/eliterec.png">
   <!-- Макет 6 «Стеклянная волна» (docs/PLAN.md, «Интерфейс»): слева Вы (L, золотой), справа Система (R, голубой).
        Текста минимум: таймер и плашка, только когда есть что сказать. -->
   <Window.Styles>
+    <Style Selector="Border.grip"><Setter Property="Background" Value="Transparent" /></Style>
     <Style Selector="ComboBox.chip">
       <Setter Property="Background" Value="Transparent" />
       <Setter Property="BorderThickness" Value="0" />
       <Setter Property="Padding" Value="0" />
       <Setter Property="FontSize" Value="12" />
       <Setter Property="FontWeight" Value="SemiBold" />
-      <Setter Property="MaxWidth" Value="118" />
       <Setter Property="VerticalAlignment" Value="Center" />
     </Style>
     <!-- Устройство — просто текст со значком и шевроном (можно сменить); стрелка шаблона ComboBox не нужна -->
@@ -70,6 +70,26 @@
       <Setter Property="HorizontalContentAlignment" Value="Center" />
       <Setter Property="VerticalContentAlignment" Value="Center" />
     </Style>
+    <!-- Кнопка записи: до записи бледная и без свечения, в записи — яркая красная со свечением:
+         пишем или нет — видно издалека -->
+    <Style Selector="Border.face">
+      <Setter Property="BoxShadow" Value="0 6 16 0 #66000000" />
+      <Setter Property="Background">
+        <RadialGradientBrush GradientOrigin="35%,30%" Center="35%,30%" RadiusX="80%" RadiusY="80%">
+          <GradientStop Offset="0" Color="#8C5B54" />
+          <GradientStop Offset="1" Color="#5A3631" />
+        </RadialGradientBrush>
+      </Setter>
+    </Style>
+    <Style Selector="Border.face.recording">
+      <Setter Property="BoxShadow" Value="0 0 24 0 #8CE05A47, 0 8 20 0 #80000000" />
+      <Setter Property="Background">
+        <RadialGradientBrush GradientOrigin="35%,30%" Center="35%,30%" RadiusX="80%" RadiusY="80%">
+          <GradientStop Offset="0" Color="#FF8A74" />
+          <GradientStop Offset="1" Color="#C8402F" />
+        </RadialGradientBrush>
+      </Setter>
+    </Style>
     <Style Selector="Button.red:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="#1FFFFFFF" />
     </Style>
@@ -119,6 +139,7 @@
 
   <!-- Окно без системных рамок: свой заголовок (app:TitleBar) повторяет системный, фон — цвет окна, как в EliteSIP.
        Скругление верхних углов — как у темы xfwm. -->
+  <Panel>
   <Border Classes="frame">
     <Border Classes="frame-inner">
       <DockPanel>
@@ -142,45 +163,45 @@
             </Ellipse.Fill>
           </Ellipse>
 
-          <Grid Margin="22" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="14">
+          <Grid Margin="18" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="12">
             <!-- Верх: устройство «Вы» | таймер | устройство «Система» — устройства просто текстом.
                  Выбор синхронизирует code-behind: новый ItemsSource сбрасывает SelectedItem, и привязка к нему после этого молчит. -->
-            <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="8">
-              <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Left" ToolTip.Tip="{Binding MicrophoneLabel}">
+            <Grid ColumnDefinitions="*,Auto,*" ColumnSpacing="10">
+              <Grid ColumnDefinitions="Auto,*" ColumnSpacing="5" ClipToBounds="True" ToolTip.Tip="{Binding MicrophoneLabel}">
                 <app:Icon Kind="mic.fill" Foreground="#D6B35C" Width="18" Height="18" VerticalAlignment="Center" />
-                <ComboBox Name="MicrophoneBox" Classes="chip" ItemsSource="{Binding Microphones}" SelectionChanged="OnDeviceChosen" IsEnabled="{Binding CanChooseDevices}"
+                <ComboBox Grid.Column="1" Name="MicrophoneBox" Classes="chip" HorizontalAlignment="Left" ItemsSource="{Binding Microphones}" SelectionChanged="OnDeviceChosen" IsEnabled="{Binding CanChooseDevices}"
                           Foreground="#E6D3A3" AutomationProperties.Name="{x:Static res:Text.You}">
                   <ComboBox.SelectionBoxItemTemplate>
                     <DataTemplate x:DataType="app:DeviceOption">
-                      <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="{Binding Chip}" TextTrimming="CharacterEllipsis" MaxWidth="96" VerticalAlignment="Center" />
-                        <app:Icon Kind="chevron.down" Foreground="#8C877C" Width="14" Height="14" VerticalAlignment="Center" />
-                      </StackPanel>
+                      <DockPanel>
+                        <app:Icon DockPanel.Dock="Right" Kind="chevron.down" Foreground="#8C877C" Width="13" Height="13" Margin="2,0,0,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Chip}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      </DockPanel>
                     </DataTemplate>
                   </ComboBox.SelectionBoxItemTemplate>
                 </ComboBox>
-              </StackPanel>
-              <Border Grid.Column="1" Height="34" CornerRadius="17" Padding="12,0" Background="#0FFFFFFF" BorderBrush="#17FFFFFF" BorderThickness="1"
+              </Grid>
+              <Border Grid.Column="1" Height="32" CornerRadius="16" Padding="8,0" Background="#0FFFFFFF" BorderBrush="#17FFFFFF" BorderThickness="1"
                       BoxShadow="0 6 20 0 #73000000" VerticalAlignment="Center" ToolTip.Tip="{Binding Status}">
-                <StackPanel Orientation="Horizontal" Spacing="8">
+                <StackPanel Orientation="Horizontal" Spacing="6">
                   <Ellipse Classes="dot" Classes.live="{Binding IsLive}" Classes.paused="{Binding IsPaused}" Width="8" Height="8" VerticalAlignment="Center" />
-                  <TextBlock Text="{Binding TimerLabel}" FontFamily="monospace" FontSize="14" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding TimerLabel}" FontFamily="monospace" FontSize="13" VerticalAlignment="Center" />
                 </StackPanel>
               </Border>
-              <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" ToolTip.Tip="{Binding OutputLabel}">
-                <ComboBox Name="OutputBox" Classes="chip" ItemsSource="{Binding Outputs}" SelectionChanged="OnDeviceChosen" IsEnabled="{Binding CanChooseDevices}"
+              <Grid Grid.Column="2" ColumnDefinitions="*,Auto" ColumnSpacing="5" ClipToBounds="True" ToolTip.Tip="{Binding OutputLabel}">
+                <ComboBox Name="OutputBox" Classes="chip" HorizontalAlignment="Right" ItemsSource="{Binding Outputs}" SelectionChanged="OnDeviceChosen" IsEnabled="{Binding CanChooseDevices}"
                           Foreground="#C4DAF4" AutomationProperties.Name="{x:Static res:Text.SystemAudio}">
                   <ComboBox.SelectionBoxItemTemplate>
                     <DataTemplate x:DataType="app:DeviceOption">
-                      <StackPanel Orientation="Horizontal" Spacing="4">
-                        <TextBlock Text="{Binding Chip}" TextTrimming="CharacterEllipsis" MaxWidth="96" VerticalAlignment="Center" />
-                        <app:Icon Kind="chevron.down" Foreground="#8C877C" Width="14" Height="14" VerticalAlignment="Center" />
-                      </StackPanel>
+                      <DockPanel>
+                        <app:Icon DockPanel.Dock="Right" Kind="chevron.down" Foreground="#8C877C" Width="13" Height="13" Margin="2,0,0,0" VerticalAlignment="Center" />
+                        <TextBlock Text="{Binding Chip}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                      </DockPanel>
                     </DataTemplate>
                   </ComboBox.SelectionBoxItemTemplate>
                 </ComboBox>
-                <app:Icon Kind="speaker.wave.2" Foreground="#7FB0E8" Width="18" Height="18" VerticalAlignment="Center" />
-              </StackPanel>
+                <app:Icon Grid.Column="1" Kind="speaker.wave.2" Foreground="#7FB0E8" Width="18" Height="18" VerticalAlignment="Center" />
+              </Grid>
             </Grid>
 
             <!-- Незавершённая запись после сбоя -->
@@ -215,7 +236,7 @@
                   </DataTemplate>
                 </ItemsControl.ItemTemplate>
               </ItemsControl>
-              <Border Grid.Column="1" Height="230" CornerRadius="1" VerticalAlignment="Center">
+              <Border Grid.Column="1" Height="200" CornerRadius="1" VerticalAlignment="Center">
                 <Border.Background>
                   <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
                     <GradientStop Offset="0" Color="#00FFFFFF" />
@@ -269,17 +290,11 @@
                   <Ellipse Classes="ring" Classes.live="{Binding IsLive}" Stroke="#E05A47" StrokeThickness="2" IsHitTestVisible="False">
                     <Ellipse.RenderTransform><ScaleTransform /></Ellipse.RenderTransform>
                   </Ellipse>
-                  <Border CornerRadius="34" BoxShadow="0 0 24 0 #8CE05A47, 0 8 20 0 #80000000">
-                    <Border.Background>
-                      <RadialGradientBrush GradientOrigin="35%,30%" Center="35%,30%" RadiusX="80%" RadiusY="80%">
-                        <GradientStop Offset="0" Color="#FF8A74" />
-                        <GradientStop Offset="1" Color="#C8402F" />
-                      </RadialGradientBrush>
-                    </Border.Background>
+                  <Border Classes="face" Classes.recording="{Binding IsRecording}" CornerRadius="34">
                     <Panel>
                       <Button Name="StartRecordingButton" Classes="red" IsVisible="{Binding ShowStart}" IsEnabled="{Binding CanStartRecording}" Click="OnStartRecording"
                               ToolTip.Tip="{x:Static res:Text.StartRecording}" AutomationProperties.Name="{x:Static res:Text.StartRecording}">
-                        <Ellipse Width="20" Height="20" Fill="#FFF3EE" />
+                        <Ellipse Width="20" Height="20" Fill="#E6C9C3" />
                       </Button>
                       <Button Classes="red" IsVisible="{Binding IsRecording}" IsEnabled="{Binding CanStopRecording}" Click="OnStopRecording"
                               ToolTip.Tip="{x:Static res:Text.Stop}" AutomationProperties.Name="{x:Static res:Text.Stop}">
@@ -299,4 +314,16 @@
       </DockPanel>
     </Border>
   </Border>
+  <!-- Края и углы для изменения размера: системной рамки нет, тянем сами (BeginResizeDrag) -->
+  <Panel Name="ResizeGrips" IsVisible="{Binding $parent[Window].CanResize}">
+    <Border Classes="grip" Tag="West" Width="6" HorizontalAlignment="Left" Cursor="LeftSide" />
+    <Border Classes="grip" Tag="East" Width="6" HorizontalAlignment="Right" Cursor="RightSide" />
+    <Border Classes="grip" Tag="South" Height="6" VerticalAlignment="Bottom" Cursor="BottomSide" />
+    <Border Classes="grip" Tag="North" Height="4" VerticalAlignment="Top" Cursor="TopSide" />
+    <Border Classes="grip" Tag="SouthWest" Width="14" Height="14" HorizontalAlignment="Left" VerticalAlignment="Bottom" Cursor="BottomLeftCorner" />
+    <Border Classes="grip" Tag="SouthEast" Width="14" Height="14" HorizontalAlignment="Right" VerticalAlignment="Bottom" Cursor="BottomRightCorner" />
+    <Border Classes="grip" Tag="NorthWest" Width="10" Height="10" HorizontalAlignment="Left" VerticalAlignment="Top" Cursor="TopLeftCorner" />
+    <Border Classes="grip" Tag="NorthEast" Width="10" Height="4" HorizontalAlignment="Right" VerticalAlignment="Top" Cursor="TopRightCorner" />
+  </Panel>
+  </Panel>
 </Window>
