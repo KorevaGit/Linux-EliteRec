@@ -14,6 +14,7 @@
 #     EliteRec                             приложение — его зовут ярлык и автозапуск
 #     eliterec-updater                     обновляльщик — его зовёт eliterec-updater.service
 #     provisioning.json                    заводская настройка: канал, пара, открытый ключ линии
+#   /usr/bin/eliterec                      команда в терминале → /opt/eliterec/EliteRec
 #   /usr/share/applications/eliterec.desktop
 #   /etc/xdg/autostart/eliterec.desktop    автозапуск в трей (--tray), выключается у себя
 #   /usr/share/icons/hicolor/*/apps/eliterec.png
@@ -105,6 +106,9 @@ fi
 echo "== раскладка"
 install -D -m 0644 "$root/packaging/applications/eliterec.desktop" "$stage/usr/share/applications/eliterec.desktop"
 install -D -m 0644 "$root/packaging/autostart/eliterec.desktop" "$stage/etc/xdg/autostart/eliterec.desktop"
+# Команда в терминале: eliterec (как у любой программы из меню — набрать и запустить).
+mkdir -p "$stage/usr/bin"
+ln -s /opt/eliterec/EliteRec "$stage/usr/bin/eliterec"
 for unit in eliterec-updater.service eliterec-updater.timer; do
     install -D -m 0644 "$root/packaging/systemd/$unit" "$stage/usr/lib/systemd/system/$unit"
 done
