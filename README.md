@@ -36,3 +36,15 @@ dotnet tools/EliteRec.Probe/bin/Release/net10.0/EliteRec.Probe.dll help
 На Linux нужны .NET SDK 10, `libpulse0`, `libmp3lame0`, libFLAC (`libflac14` в Debian 13), `libopus0` и
 `pulseaudio-utils` (для диагностического каталога и smoke-скрипта).
 Продуктовый каталог устройств работает напрямую с libpulse и не требует pactl.
+
+## Установка
+
+Пакет собирается `packaging/build-deb.sh --version 0.1.0` (или берётся из
+артефакта CI `eliterec-deb`) и ставится на Linux Mint 22, Ubuntu 24.04 или
+Debian 13:
+
+```bash
+sudo apt install ./artifacts/EliteRec-0.1.0.deb
+```
+
+Подробности — [docs/R6-PACKAGING.md](docs/R6-PACKAGING.md).

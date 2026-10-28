@@ -87,7 +87,15 @@ public partial class MainWindow : Window
     // Трей — только если панель его покажет (как в EliteSIP): иначе спрятанное окно не вернуть.
     private async Task StartTrayAsync()
     {
-        if (!await Desktop.TrayHostAvailableAsync() || _closing) return;
+        bool trayHost = await Desktop.TrayHostAvailableAsync();
+        // Автозапуск: окно спрятано в трей; трея нет — окно свёрнуто в панель задач, а не закрыто.
+        if (Program.StartInTray)
+        {
+            if (trayHost && !_closing) Hide();
+            else WindowState = WindowState.Minimized;
+            Opacity = 1;
+        }
+        if (!trayHost || _closing) return;
         _tray = new Tray(Model,
             start: StartFromTrayAsync,
             pause: () => OnPauseRecording(null, new RoutedEventArgs()),
@@ -115,6 +123,7 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = model;
+        if (Program.StartInTray) Opacity = 0; // не мелькнуть окном, пока выясняется, есть ли трей
         foreach (var grip in ResizeGrips.Children.OfType<Border>())
             grip.PointerPressed += (_, e) =>
             {
@@ -355,6 +364,8 @@ public partial class MainWindow : Window
     /// <summary>Иконка для уведомлений: путь к файлу (avares:// сервер уведомлений не прочтёт), раз в кэш.</summary>
     private static string? IconFile()
     {
+        // Из пакета значок стоит в теме — уведомлениям хватает имени.
+        if (File.Exists("/usr/share/icons/hicolor/256x256/apps/eliterec.png")) return "eliterec";
         try
         {
             string cache = Environment.GetEnvironmentVariable("XDG_CACHE_HOME") is { Length: > 0 } c && Path.IsPathRooted(c)

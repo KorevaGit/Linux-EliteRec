@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=EliteRec
+Comment=Запись звонков — в трее до нажатия «Запись»
+Exec=/opt/eliterec/EliteRec --tray
+Icon=eliterec
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+X-GNOME-AutoRestart=false

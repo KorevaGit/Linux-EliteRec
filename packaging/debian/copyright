@@ -1,0 +1,15 @@
+Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: EliteRec
+Comment:
+ Запись звонков EliteRec для Linux. Программа не свободная: распространяется
+ только среди рабочих мест заказчика, ставит её администратор.
+ Сторонние компоненты в /opt/eliterec идут под своими лицензиями:
+ .NET (MIT), Avalonia и MicroCom (MIT), SkiaSharp и HarfBuzzSharp (MIT),
+ Tmds.DBus (MIT). Тексты лицензий — в пакетах NuGet этих компонентов.
+ Кодеки (libmp3lame, libFLAC, libopus) и libpulse — системные пакеты.
+
+Files: *
+Copyright: EliteSIP
+License: proprietary
+ Все права защищены. Копирование, распространение и изменение без
+ письменного разрешения правообладателя запрещены.

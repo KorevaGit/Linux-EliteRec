@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=EliteRec
+GenericName=Запись звонков
+Comment=Запись Zoom и Телемоста для расшифровки: слева менеджер, справа клиент
+Exec=/opt/eliterec/EliteRec
+Icon=eliterec
+Terminal=false
+Categories=AudioVideo;Audio;Recorder;
+Keywords=запись;звонок;zoom;телемост;расшифровка;
+StartupNotify=false
+StartupWMClass=EliteRec.App

@@ -5,5 +5,7 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <Deterministic>true</Deterministic>
+    <!-- Версия выпуска; packaging/build-deb.sh задаёт её ключом -p:Version для всего дерева -->
+    <Version>0.1.0</Version>
   </PropertyGroup>
 </Project>

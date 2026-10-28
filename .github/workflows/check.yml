@@ -26,3 +26,35 @@ jobs:
       - run: curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0 --install-dir /usr/share/dotnet
       - run: /usr/share/dotnet/dotnet build EliteRec.Linux.slnx -c Release
       - run: /usr/share/dotnet/dotnet test EliteRec.Linux.slnx -c Release --no-build
+
+  # R6: пакет .deb — собирается на основе Mint 22 и ставится через apt на чистые
+  # Debian 13 и Ubuntu 24.04: зависимости находятся, кодеки работают (--check-codecs).
+  package:
+    needs: mint-ubuntu-24-04
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: packaging/build-deb.sh --version 0.1.0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eliterec-deb
+          path: artifacts/EliteRec-*.deb
+
+  install:
+    needs: package
+    strategy:
+      matrix:
+        image: ['debian:trixie', 'ubuntu:24.04']
+    runs-on: ubuntu-24.04
+    container: ${{ matrix.image }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: eliterec-deb
+      - run: apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y ./EliteRec-*.deb
+      - run: /opt/eliterec/EliteRec --check-codecs
+      - run: test -f /etc/xdg/autostart/eliterec.desktop && test -f /usr/share/icons/hicolor/256x256/apps/eliterec.png
+      - run: DEBIAN_FRONTEND=noninteractive apt-get remove -y eliterec && test ! -e /opt/eliterec/EliteRec
