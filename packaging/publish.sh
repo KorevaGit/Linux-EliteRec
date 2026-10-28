@@ -75,7 +75,9 @@ fi
 
 echo "== 3. что отдаёт канал"
 tmp=$(mktemp -d); trap 'rm -rf "$tmp"' EXIT
-[ "$(curl -sS -o /dev/null -w '%{http_code}' "$base_url/releases/eliterec/linux/current.json")" = 401 ] || fail "манифест отдаётся без пары"
+anonymous=$(curl -sS -o /dev/null -w '%{http_code}' "$base_url/releases/eliterec/linux/current.json")
+[ "$anonymous" != 404 ] || fail "канал не знает каталога EliteRec (404) — сервер elitesip_update ещё не развёрнут; повторить: --verify-only"
+[ "$anonymous" = 401 ] || fail "манифест отдаётся без пары ($anonymous)"
 code=$(request "user = $(quote "$basic")" -o "$tmp/current.json" "$base_url/releases/eliterec/linux/current.json")
 [ "$code" = 200 ] && cmp -s "$tmp/current.json" "$envelope" || fail "манифест на канале не тот ($code)"
 code=$(request "user = $(quote "$basic")" -o "$tmp/package.deb" "$base_url/releases/eliterec/linux/EliteRec-$version.deb")
