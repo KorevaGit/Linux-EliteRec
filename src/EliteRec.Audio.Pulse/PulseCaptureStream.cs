@@ -20,6 +20,10 @@ internal sealed unsafe class PulseCaptureStream : IDisposable
     private long _holes, _overflows, _untimed;
     private string? _failure;
     private double _lastArrival, _lastSound, _opened;
+    // Где должен начаться следующий блок, если сервер не дал свежей метки времени (после подвисания
+    // процесса метка «стареет»). После переполнения продолжать нельзя — часть звука выброшена.
+    private double _nextTime = double.NaN;
+    private bool _overflowed;
     private volatile bool _active;
     /// <summary>Отдавать ли данные в микшер. Новый источник открывается немым и включается при подмене.</summary>
     internal bool Active { get => _active; set => _active = value; }
@@ -67,8 +71,11 @@ internal sealed unsafe class PulseCaptureStream : IDisposable
                 LibPulse.StreamSetOverflowCallback(capture._stream, &OnOverflow, user);
                 var attributes = new LibPulse.BufferAttr
                 {
-                    MaxLength = 48000 * sizeof(float), TLength = uint.MaxValue, PreBuf = uint.MaxValue,
-                    MinReq = uint.MaxValue, FragSize = 960 * sizeof(float),
+                    // 10 с на сервере: подвисший процесс (своп на HDD) заберёт накопленное, а не потеряет его.
+                    MaxLength = 10 * 48000 * sizeof(float), TLength = uint.MaxValue, PreBuf = uint.MaxValue,
+                    MinReq = uint.MaxValue,
+                    // Блоки по 100 мс: сводим с запасом 250 мс, а частые пробуждения — лишняя нагрузка на слабом ПК.
+                    FragSize = 4800 * sizeof(float),
                 };
                 if (LibPulse.StreamConnectRecord(capture._stream, device, &attributes,
                     LibPulse.StreamAutoTimingUpdate | LibPulse.StreamAdjustLatency | LibPulse.StreamDontMove) < 0)
@@ -133,15 +140,19 @@ internal sealed unsafe class PulseCaptureStream : IDisposable
                     continue;
                 }
                 double? time = self.FirstSampleTime();
+                if (time is not null) self._overflowed = false;
+                else if (self._timedFrames != 0 && !self._overflowed && !double.IsNaN(self._nextTime)) time = self._nextTime;
                 if (time is null)
                 {
+                    // До первой метки или после переполнения: блок без места на шкале — тишина в записи,
+                    // а не обрыв; свежая метка придёт с ближайшим обновлением времени.
                     self._untimed += count;
-                    if (self._timedFrames != 0) Volatile.Write(ref self._failure, "Потеряны метки времени аудиопотока.");
                 }
                 else if (data is not null)
                 {
                     self._mixer.Push(self._channel, time.Value, new ReadOnlySpan<float>(data, count));
                     self._timedFrames += count;
+                    self._nextTime = time.Value + count / 48000.0;
                 }
                 else
                 {
@@ -149,6 +160,7 @@ internal sealed unsafe class PulseCaptureStream : IDisposable
                     for (int offset = 0; offset < count; offset += silence.Length)
                         self._mixer.Push(self._channel, time.Value + offset / 48000.0, silence[..Math.Min(silence.Length, count - offset)]);
                     self._timedFrames += count;
+                    self._nextTime = time.Value + count / 48000.0;
                 }
                 if (LibPulse.StreamDrop(stream) < 0) throw new InvalidOperationException("Ошибка освобождения аудиоблока.");
             }
@@ -157,7 +169,11 @@ internal sealed unsafe class PulseCaptureStream : IDisposable
     }
 
     [UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
-    private static void OnOverflow(nint _, nint user) => ((PulseCaptureStream)GCHandle.FromIntPtr(user).Target!)._overflows++;
+    private static void OnOverflow(nint _, nint user)
+    {
+        var self = (PulseCaptureStream)GCHandle.FromIntPtr(user).Target!;
+        self._overflows++; self._overflowed = true;
+    }
 
     public void Dispose()
     {

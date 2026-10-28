@@ -90,6 +90,9 @@ public sealed class MainPanelModel : INotifyPropertyChanged
     }
 
     public LevelWave Wave { get; } = new();
+
+    /// <summary>Считать ли волну: окно спрятано в трей или свёрнуто — незачем грузить слабый ПК.</summary>
+    public bool Animate { get; set; } = true;
     private readonly System.Diagnostics.Stopwatch _clock = System.Diagnostics.Stopwatch.StartNew();
 
     /// <summary>Жёлтая плашка: пауза, ошибка или предупреждение об устройстве.</summary>
@@ -109,7 +112,7 @@ public sealed class MainPanelModel : INotifyPropertyChanged
     {
         if (recording?.State == RecordingState.Recording) _saved = null; // новая запись — прежнее «Сохранено» неактуально
         _recording = recording; _busy = busy;
-        if (recording is not null)
+        if (recording is not null && Animate)
             Wave.Add(_clock.Elapsed.TotalSeconds, recording.MicrophonePeak, recording.SystemPeak, recording.State == RecordingState.Paused);
         foreach (string property in new[] { nameof(CanChooseDevices), nameof(CanStartRecording), nameof(CanPauseRecording),
             nameof(CanStopRecording), nameof(IsRecording), nameof(ShowStart), nameof(TimerLabel), nameof(PauseLabel),

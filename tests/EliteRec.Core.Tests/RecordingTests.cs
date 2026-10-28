@@ -25,7 +25,7 @@ public class RecordingTests
     public void MissingOrOverwrittenSamplesBecomeReportedSilence()
     {
         var mixer = new SynchronizedAudioMixer();
-        mixer.Push(AudioChannel.Microphone, 0, new float[150000]);
+        mixer.Push(AudioChannel.Microphone, 0, new float[SynchronizedAudioMixer.SampleRate * 10 + 54000]); // больше 10-секундного буфера
         float[] a = new float[480], b = new float[480];
         mixer.Render(0, a, b);
         Assert.Equal(480, mixer.Statistics.MissingMicrophoneFrames);

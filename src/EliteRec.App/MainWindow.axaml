@@ -26,18 +26,12 @@
       <Setter Property="Margin" Value="2,0" />
       <Setter Property="CornerRadius" Value="6" />
       <Setter Property="VerticalAlignment" Value="Center" />
-      <Setter Property="Transitions">
-        <Transitions><DoubleTransition Property="Height" Duration="0:0:0.09" /></Transitions>
-      </Setter>
     </Style>
     <Style Selector="Ellipse.glow">
       <Setter Property="Width" Value="360" />
       <Setter Property="Height" Value="360" />
       <Setter Property="IsHitTestVisible" Value="False" />
       <Setter Property="VerticalAlignment" Value="Top" />
-      <Setter Property="Transitions">
-        <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.25" /></Transitions>
-      </Setter>
     </Style>
     <Style Selector="Grid.wave">
       <Setter Property="Transitions">
@@ -93,28 +87,16 @@
     <Style Selector="Button.red:pointerover /template/ ContentPresenter">
       <Setter Property="Background" Value="#1FFFFFFF" />
     </Style>
-    <!-- Точка у таймера: серая до записи, красная мигает в записи, жёлтая на паузе -->
+    <!-- Точка у таймера: серая до записи, красная мигает в записи (по таймеру окна, не анимацией), жёлтая на паузе -->
     <Style Selector="Ellipse.dot"><Setter Property="Fill" Value="#6D685E" /></Style>
     <Style Selector="Ellipse.dot.paused"><Setter Property="Fill" Value="#F0D48A" /></Style>
-    <Style Selector="Ellipse.dot.live">
-      <Setter Property="Fill" Value="#E05A47" />
-      <Style.Animations>
-        <Animation Duration="0:0:1.6" IterationCount="Infinite">
-          <KeyFrame Cue="0%"><Setter Property="Opacity" Value="1" /></KeyFrame>
-          <KeyFrame Cue="50%"><Setter Property="Opacity" Value="0.25" /></KeyFrame>
-          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="1" /></KeyFrame>
-        </Animation>
-      </Style.Animations>
-    </Style>
-    <!-- Кольцо вокруг «Стоп» расходится, пока идёт запись -->
+    <Style Selector="Ellipse.dot.live"><Setter Property="Fill" Value="#E05A47" /></Style>
+    <!-- Кольцо вокруг «Стоп», пока идёт запись. Без анимации: непрерывная перерисовка с частотой экрана
+         заметно грузит слабый ПК (A6), а яркая кнопка и мигающая точка и так говорят «пишем». -->
     <Style Selector="Ellipse.ring"><Setter Property="Opacity" Value="0" /></Style>
     <Style Selector="Ellipse.ring.live">
-      <Style.Animations>
-        <Animation Duration="0:0:1.8" IterationCount="Infinite" Easing="CubicEaseOut">
-          <KeyFrame Cue="0%"><Setter Property="Opacity" Value="0.55" /><Setter Property="ScaleTransform.ScaleX" Value="1" /><Setter Property="ScaleTransform.ScaleY" Value="1" /></KeyFrame>
-          <KeyFrame Cue="100%"><Setter Property="Opacity" Value="0" /><Setter Property="ScaleTransform.ScaleX" Value="1.45" /><Setter Property="ScaleTransform.ScaleY" Value="1.45" /></KeyFrame>
-        </Animation>
-      </Style.Animations>
+      <Setter Property="Opacity" Value="0.45" />
+      <Setter Property="RenderTransform" Value="scale(1.2)" />
     </Style>
     <Style Selector="Border.notice">
       <Setter Property="CornerRadius" Value="12" />
@@ -184,7 +166,7 @@
               <Border Grid.Column="1" Height="32" CornerRadius="16" Padding="8,0" Background="#0FFFFFFF" BorderBrush="#17FFFFFF" BorderThickness="1"
                       BoxShadow="0 6 20 0 #73000000" VerticalAlignment="Center" ToolTip.Tip="{Binding Status}">
                 <StackPanel Orientation="Horizontal" Spacing="6">
-                  <Ellipse Classes="dot" Classes.live="{Binding IsLive}" Classes.paused="{Binding IsPaused}" Width="8" Height="8" VerticalAlignment="Center" />
+                  <Ellipse Name="TimerDot" Classes="dot" Classes.live="{Binding IsLive}" Classes.paused="{Binding IsPaused}" Width="8" Height="8" VerticalAlignment="Center" />
                   <TextBlock Text="{Binding TimerLabel}" FontFamily="monospace" FontSize="13" VerticalAlignment="Center" />
                 </StackPanel>
               </Border>
@@ -222,7 +204,7 @@
                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1" Columns="16" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                   <DataTemplate DataType="app:LevelBar" x:DataType="app:LevelBar">
-                    <Border Classes="bar" Height="{Binding Height}" Opacity="{Binding Opacity}" BoxShadow="0 0 14 0 #73D6B35C">
+                    <Border Classes="bar" Height="{Binding Height}" Opacity="{Binding Opacity}">
                       <Border.Background>
                         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
                           <GradientStop Offset="0" Color="#00D6B35C" />
@@ -249,7 +231,7 @@
                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Rows="1" Columns="16" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                   <DataTemplate DataType="app:LevelBar" x:DataType="app:LevelBar">
-                    <Border Classes="bar" Height="{Binding Height}" Opacity="{Binding Opacity}" BoxShadow="0 0 14 0 #737FB0E8">
+                    <Border Classes="bar" Height="{Binding Height}" Opacity="{Binding Opacity}">
                       <Border.Background>
                         <LinearGradientBrush StartPoint="0%,0%" EndPoint="0%,100%">
                           <GradientStop Offset="0" Color="#007FB0E8" />
@@ -287,9 +269,7 @@
                 </Button>
 
                 <Panel Width="68" Height="68">
-                  <Ellipse Classes="ring" Classes.live="{Binding IsLive}" Stroke="#E05A47" StrokeThickness="2" IsHitTestVisible="False">
-                    <Ellipse.RenderTransform><ScaleTransform /></Ellipse.RenderTransform>
-                  </Ellipse>
+                  <Ellipse Classes="ring" Classes.live="{Binding IsLive}" Stroke="#E05A47" StrokeThickness="2" IsHitTestVisible="False" />
                   <Border Classes="face" Classes.recording="{Binding IsRecording}" CornerRadius="34">
                     <Panel>
                       <Button Name="StartRecordingButton" Classes="red" IsVisible="{Binding ShowStart}" IsEnabled="{Binding CanStartRecording}" Click="OnStartRecording"

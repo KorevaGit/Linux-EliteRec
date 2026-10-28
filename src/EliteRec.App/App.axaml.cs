@@ -13,4 +13,11 @@ public partial class App : Application
             desktop.MainWindow = new MainWindow();
         base.OnFrameworkInitializationCompleted();
     }
+
+    /// <summary>Второй запуск попросил показать окно (см. <see cref="SingleInstance"/>).</summary>
+    public static void ShowMainWindow()
+    {
+        if (Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime { MainWindow: MainWindow window })
+            window.ShowFromTray();
+    }
 }

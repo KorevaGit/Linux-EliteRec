@@ -27,7 +27,8 @@ public sealed class PulseRecordingSession : IRecordingSession
     private IRecordingSink? _sink;
     private RecordingState _state = RecordingState.Preview;
     private RecordingFiles? _files;
-    private long _recorded, _nextFrame, _recordingMissing;
+    private long _recorded, _nextFrame, _recordingMissing, _gapFrames;
+    private double _lastLoop, _graceUntil;
     private bool _fadeIn, _running = true;
     private string? _failure, _microphoneSource, _systemSource;
     private RecordingSnapshot _snapshot = new(RecordingState.Preview, 0, 0, 0, new(0, 0, 0, 0, 0, 0));
@@ -58,7 +59,7 @@ public sealed class PulseRecordingSession : IRecordingSession
     public Task StartRecordingAsync(Func<IRecordingSink> createSink) => Enqueue(() =>
     {
         if (_state != RecordingState.Preview) throw new InvalidOperationException("Запись уже начата.");
-        _sink = createSink(); _files = _sink.Files; _recorded = 0; _recordingMissing = 0; _fadeIn = true; _state = RecordingState.Recording;
+        _sink = createSink(); _files = _sink.Files; _recorded = 0; _recordingMissing = 0; _gapFrames = 0; _fadeIn = true; _state = RecordingState.Recording;
     });
 
     public Task PauseAsync() => Enqueue(() =>
@@ -155,15 +156,21 @@ public sealed class PulseRecordingSession : IRecordingSession
         {
             while (!_stop.IsCancellationRequested)
             {
-                _wake.WaitOne(10);
+                _wake.WaitOne(30); // команды будят сразу; сведение идёт с запасом 250 мс
+                // Цикл не просыпался дольше 0,5 с — процесс подвис (своп, перегруженный ПК). Данные
+                // ещё в пути от сервера, поэтому «давно не было данных» какое-то время ничего не значит.
+                double now = _clock.Elapsed.TotalSeconds;
+                if (_lastLoop > 0 && now - _lastLoop > .5) _graceUntil = now + 3;
+                _lastLoop = now;
+                bool grace = now < _graceUntil;
                 PulseCaptureStream? mic, sys;
                 lock (_streams) { mic = _microphone; sys = _system; }
                 AudioChannel? lost = null;
                 using (_connection.Lock())
                 {
                     if (LibPulse.ContextGetState(_connection.Context) != LibPulse.ContextReady) throw new InvalidOperationException("Аудиосервер отключён.");
-                    if (mic is not null && !Alive(mic)) lost = AudioChannel.Microphone;
-                    else if (sys is not null && !Alive(sys)) lost = AudioChannel.System;
+                    if (mic is not null && !Alive(mic, grace)) lost = AudioChannel.Microphone;
+                    else if (sys is not null && !Alive(sys, grace)) lost = AudioChannel.System;
                     else if (_clock.Elapsed.TotalSeconds - lastTiming >= .25)
                     { mic?.UpdateTiming(); sys?.UpdateTiming(); lastTiming = _clock.Elapsed.TotalSeconds; }
                 }
@@ -191,9 +198,17 @@ public sealed class PulseRecordingSession : IRecordingSession
                     if (_state == RecordingState.Recording)
                     {
                         var after = _mixer.Statistics;
-                        _recordingMissing += after.MissingMicrophoneFrames + after.MissingSystemFrames
-                            - before.MissingMicrophoneFrames - before.MissingSystemFrames;
-                        if (_recordingMissing > 4800) throw new InvalidOperationException("Потеряно более 100 мс аудиоданных. Запись завершена.");
+                        long missing = Math.Max(after.MissingMicrophoneFrames - before.MissingMicrophoneFrames,
+                            after.MissingSystemFrames - before.MissingSystemFrames);
+                        _recordingMissing += missing;
+                        // Потерянное (система не отдавала процессу время дольше буферов) — тишина в файле и
+                        // строка в файле событий, но не обрыв записи: остальной разговор важнее.
+                        if (missing > 0) _gapFrames += missing;
+                        else if (_gapFrames > 0)
+                        {
+                            if (_gapFrames >= 960) _sink!.Mark(Position, $"Пропуск звука {_gapFrames / 48} мс — компьютер не успевал, на этом месте тишина");
+                            _gapFrames = 0;
+                        }
                         bool fadeOut;
                         lock (_gate) fadeOut = _commands.TryPeek(out var next) && next.EndsSegment && next.Frame <= _nextFrame + 480;
                         Fade(microphone, _fadeIn, fadeOut); Fade(system, _fadeIn, fadeOut); _fadeIn = false;
@@ -221,9 +236,9 @@ public sealed class PulseRecordingSession : IRecordingSession
     }
 
     /// <summary>Поток жив: не упал, не отключён сервером и данные приходят.</summary>
-    private static bool Alive(PulseCaptureStream stream)
+    private static bool Alive(PulseCaptureStream stream, bool grace = false)
     {
-        if (stream.Failure is not null || stream.ArrivalAge > 2) return false;
+        if (stream.Failure is not null || (!grace && stream.ArrivalAge > 2)) return false;
         try { stream.Ready(); return true; }
         catch (InvalidOperationException) { return false; }
     }

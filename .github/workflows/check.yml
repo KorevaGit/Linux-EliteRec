@@ -1,14 +1,28 @@
 name: Linux checks
 on: [push, pull_request]
 jobs:
-  build-and-test:
+  # Ubuntu 24.04 — основа Linux Mint 22 (машины менеджеров).
+  mint-ubuntu-24-04:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - run: sudo apt-get update && sudo apt-get install -y libmp3lame0 libpulse0 libfontconfig1 fonts-dejavu-core
+      - run: sudo apt-get update && sudo apt-get install -y libmp3lame0 libflac12t64 libopus0 libpulse0 libfontconfig1 fonts-dejavu-core
       - run: dotnet restore EliteRec.Linux.slnx
       - run: dotnet build EliteRec.Linux.slnx -c Release --no-restore
       - run: dotnet test EliteRec.Linux.slnx -c Release --no-build --no-restore
+
+  # Debian 13 — основа EliteLinux: свои сонеймы (libFLAC.so.14) и версии библиотек.
+  debian-13:
+    runs-on: ubuntu-24.04
+    container: debian:trixie
+    steps:
+      - run: >
+          apt-get update && apt-get install -y --no-install-recommends ca-certificates curl git
+          libicu76 libmp3lame0 libflac14 libopus0 libpulse0 libfontconfig1 fonts-dejavu-core
+      - uses: actions/checkout@v4
+      - run: curl -sSL https://dot.net/v1/dotnet-install.sh | bash -s -- --channel 10.0 --install-dir /usr/share/dotnet
+      - run: /usr/share/dotnet/dotnet build EliteRec.Linux.slnx -c Release
+      - run: /usr/share/dotnet/dotnet test EliteRec.Linux.slnx -c Release --no-build

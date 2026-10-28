@@ -17,6 +17,9 @@ internal static class Program
             return snapshot.ServerAvailable ? 0 : 2;
         }
         if (args.Contains("--watch-devices", StringComparer.Ordinal)) return WatchDevices();
+        // Уже запущен (ярлык при работающем автозапуске) — показать его окно и выйти.
+        if (!SingleInstance.ClaimAsync(() => Avalonia.Threading.Dispatcher.UIThread.Post(App.ShowMainWindow)).GetAwaiter().GetResult())
+            return 0;
         return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
     }
 

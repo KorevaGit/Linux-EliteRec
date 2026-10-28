@@ -32,8 +32,14 @@ public partial class SettingsWindow : Window
     {
         if (Model.TestFile is not { } file) return;
         StopPlayer();
-        try { _player = Process.Start(new ProcessStartInfo("paplay", [file]) { UseShellExecute = false }); }
-        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { Model.Fail(ex.Message); }
+        // В EliteLinux (PipeWire) есть pw-play, а paplay — только если стоит pulseaudio-utils.
+        foreach (string player in new[] { "pw-play", "paplay" })
+        {
+            try { _player = Process.Start(new ProcessStartInfo(player, [file]) { UseShellExecute = false }); return; }
+            catch (System.ComponentModel.Win32Exception) { }
+            catch (InvalidOperationException ex) { Model.Fail(ex.Message); return; }
+        }
+        Model.Fail("нет pw-play и paplay");
     }
 
     private void StopPlayer()

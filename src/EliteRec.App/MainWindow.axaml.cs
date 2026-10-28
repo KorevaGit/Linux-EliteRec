@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text.Json;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -28,6 +29,19 @@ public partial class MainWindow : Window
     private string? _silentMicrophone;
     private Tray? _tray;
     private bool _quitting, _toldAboutTray;
+    private int _blink;
+    private PosixSignalRegistration[] _terminate = [];
+
+    private void OnTerminate(PosixSignalContext context)
+    {
+        context.Cancel = true;
+        _ = Task.Run(async () =>
+        {
+            try { if (_session is { } session) await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)); }
+            catch (Exception ex) { Console.Error.WriteLine(ex.Message); }
+            finally { Environment.Exit(0); }
+        });
+    }
     private const double SilenceLimit = 3;
     private MainPanelModel Model => (MainPanelModel)DataContext!;
 
@@ -46,10 +60,26 @@ public partial class MainWindow : Window
         {
             if (_closing || _session is null) return;
             Model.UpdateRecording(_session.Snapshot, _busy);
+            // Точка «пишем» мигает раз в 0,8 с — два кадра вместо анимации с частотой экрана.
+            TimerDot.Opacity = Model.IsLive && ++_blink / 16 % 2 == 1 ? .3 : 1;
+            if (!Model.Animate && !Model.IsRecording) PaceTimer(); // запись кончилась, окно спрятано
             _ = FollowDevicesAsync(); // поток мог умереть и без события об устройстве
         };
         _meterTimer.Start();
         Closing += OnClosing;
+        // Выход из сеанса или выключение: идущая запись дописывается штатно (как «Стоп», без названия),
+        // а не остаётся частями для восстановления. Без окна — X-сервер к этому моменту может уже уйти.
+        _terminate = [PosixSignalRegistration.Create(PosixSignal.SIGTERM, OnTerminate), PosixSignalRegistration.Create(PosixSignal.SIGHUP, OnTerminate)];
+        PropertyChanged += (_, e) =>
+        {
+            if (e.Property != IsVisibleProperty && e.Property != WindowStateProperty) return;
+            Model.Animate = IsVisible && WindowState != WindowState.Minimized;
+            // Окно не видно и запись не идёт — захват ни к чему: на слабом ПК это несколько процентов
+            // ядра весь день. Вернётся окно — захват откроется снова.
+            if (Model.Animate) _ = RefreshPreviewAsync();
+            else _ = SuspendPreviewAsync();
+            PaceTimer();
+        };
         FindIncompleteRecordings();
         _ = StartTrayAsync();
     }
@@ -59,7 +89,7 @@ public partial class MainWindow : Window
     {
         if (!await Desktop.TrayHostAvailableAsync() || _closing) return;
         _tray = new Tray(Model,
-            start: () => OnStartRecording(null, new RoutedEventArgs()),
+            start: StartFromTrayAsync,
             pause: () => OnPauseRecording(null, new RoutedEventArgs()),
             stop: () => OnStopRecording(null, new RoutedEventArgs()),
             show: ShowFromTray,
@@ -67,7 +97,14 @@ public partial class MainWindow : Window
             quit: () => { _quitting = true; Close(); });
     }
 
-    private void ShowFromTray()
+    // В трее до записи захват закрыт (экономия на слабом ПК) — сначала открыть его, потом писать.
+    private async void StartFromTrayAsync()
+    {
+        if (_session is null) await RefreshPreviewAsync(force: true);
+        OnStartRecording(null, new RoutedEventArgs());
+    }
+
+    internal void ShowFromTray()
     {
         Show();
         if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
@@ -108,9 +145,9 @@ public partial class MainWindow : Window
         ShowChosenDevices(); // выбор могли не принять (запись идёт) — вернуть показанный
     }
 
-    private async Task RefreshPreviewAsync()
+    private async Task RefreshPreviewAsync(bool force = false)
     {
-        if (_closing || Model.IsRecording || _busy) return;
+        if (_closing || Model.IsRecording || _busy || (!Model.Animate && !force)) return;
         var desired = RecordingRoute.For(_devices, Model.Preferences.MicrophoneId, Model.Preferences.OutputId);
         var route = (desired.MicrophoneSource, desired.SystemSource);
         if (_session?.Snapshot.State == RecordingState.Preview && _route == route) return;
@@ -144,6 +181,34 @@ public partial class MainWindow : Window
             cancellation.Dispose(); _previewGate.Release();
             if (!_closing && generation == _generation && _session is null) Model.UpdateRecording(null);
         }
+    }
+
+    /// <summary>
+    /// Таймер окна будит интерфейс: 20 раз в секунду — около 4 % ядра даже впустую (замер 28 октября).
+    /// Окно видно — 50 мс ради плавной волны; спрятано и пишем — 0,5 с (переключение устройств,
+    /// подсказка трея); спрятано и не пишем — стоит.
+    /// </summary>
+    private void PaceTimer()
+    {
+        if (_closing) return;
+        if (Model.Animate) { _meterTimer.Interval = TimeSpan.FromMilliseconds(50); _meterTimer.Start(); }
+        else if (Model.IsRecording) { _meterTimer.Interval = TimeSpan.FromMilliseconds(500); _meterTimer.Start(); }
+        else _meterTimer.Stop();
+    }
+
+    private async Task SuspendPreviewAsync()
+    {
+        if (_closing || _busy || Model.IsRecording || _session is null) return;
+        _previewCancellation?.Cancel();
+        await _previewGate.WaitAsync();
+        try
+        {
+            if (_closing || _busy || Model.Animate || _session is not { } session || session.Snapshot.State != RecordingState.Preview) return;
+            _session = null; _route = default;
+            await session.DisposeAsync();
+            Model.UpdateRecording(null);
+        }
+        finally { _previewGate.Release(); }
     }
 
     /// <summary>
@@ -212,6 +277,7 @@ public partial class MainWindow : Window
             await session.StartRecordingAsync(() => new RecordingSink(basePath, format, mono: preferences.SaveMono));
             started = true;
         });
+        PaceTimer();
         // План: «При старте записи — „Идёт запись — предупредите клиента“».
         if (started) await Desktop.NotifyAsync(Text.Get("RecordingStartedTitle"), Text.Get("RecordingStartedBody"), IconFile());
     }

@@ -158,11 +158,12 @@ def main():
             while recorder.poll() is None:
                 if time.monotonic() - started > options.seconds + 25:
                     raise TimeoutError("Запись не завершилась вовремя")
-                if options.stall_ms and time.monotonic() - started >= next_stall:
+                # Подвисание не должно накрыть конец: «Стоп» во время заморозки сработал бы позже, чем задано.
+                if options.stall_ms and next_stall <= time.monotonic() - started < options.seconds - options.stall_ms / 1000 - 3:
                     recorder.send_signal(signal.SIGSTOP)
-                    time.sleep(min(options.stall_ms, 800) / 1000)
+                    time.sleep(options.stall_ms / 1000)  # R5: и многосекундные подвисания слабого ПК
                     recorder.send_signal(signal.SIGCONT)
-                    next_stall += 3
+                    next_stall += 3 + options.stall_ms / 1000
                 time.sleep(.1)
             if recorder.returncode != 0: raise RuntimeError((directory / "recorder.log").read_text())
         result = validate(base, options.seconds, options.pause_for)

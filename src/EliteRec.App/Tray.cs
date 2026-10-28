@@ -64,7 +64,7 @@ public sealed class Tray : IDisposable
         if (look != _look) { _look = look; _icon.Icon = _icons[look]; }
         _icon.ToolTipText = !_model.IsRecording ? Text.Get("TrayIdleTip")
             : string.Format(CultureInfo.CurrentCulture, Text.Get(_model.IsPaused ? "TrayPausedTip" : "TrayRecordingTip"), _model.TimerLabel);
-        _start.IsVisible = !_model.IsRecording; _start.IsEnabled = _model.CanStartRecording;
+        _start.IsVisible = !_model.IsRecording; _start.IsEnabled = !_model.IsRecording; // в трее захват может быть закрыт — откроется по нажатию
         _pause.IsVisible = _stop.IsVisible = _model.IsRecording;
         _pause.Header = _model.PauseLabel; _pause.IsEnabled = _model.CanPauseRecording; _stop.IsEnabled = _model.CanStopRecording;
     }

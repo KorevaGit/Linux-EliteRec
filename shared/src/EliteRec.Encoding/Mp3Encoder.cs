@@ -28,7 +28,7 @@ internal sealed unsafe class Mp3Encoder : IPartEncoder
             Check(Lame.SetBitrate(_encoder, stereo ? 192 : 128));
             Check(Lame.SetVbr(_encoder, 0));
             Check(Lame.SetVbrTag(_encoder, 0));
-            Check(Lame.SetQuality(_encoder, 2));
+            Check(Lame.SetQuality(_encoder, 7)); // быстрый режим: на 192 кбит/с речь не отличить от q=2, а CPU вдвое меньше (слабые ПК)
             Check(Lame.InitParams(_encoder));
         }
         catch { Dispose(); throw; }

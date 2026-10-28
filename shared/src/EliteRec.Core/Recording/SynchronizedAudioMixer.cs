@@ -98,7 +98,9 @@ public sealed class SynchronizedAudioMixer
 
     private sealed class ClockedBuffer
     {
-        private readonly float[] _samples = new float[SampleRate * 2];
+        // 10 с: после подвисания процесса один канал может догнать раньше другого — его накопленное
+        // не должно перезаписаться, пока сведение ждёт второй канал.
+        private readonly float[] _samples = new float[SampleRate * 10];
         private readonly (double Time, double Frame)[] _anchors = new (double, double)[64];
         private int _anchorNext, _anchorCount;
         private double _lastAnchorTime = double.NegativeInfinity, _offset;
