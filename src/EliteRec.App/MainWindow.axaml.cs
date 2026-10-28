@@ -54,6 +54,28 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         DataContext = model;
+        model.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName is nameof(MainPanelModel.Microphone) or nameof(MainPanelModel.Microphones)
+                or nameof(MainPanelModel.Output) or nameof(MainPanelModel.Outputs)) ShowChosenDevices();
+        };
+        ShowChosenDevices();
+    }
+
+    private bool _showingDevices;
+
+    private void ShowChosenDevices()
+    {
+        _showingDevices = true;
+        try { MicrophoneBox.SelectedItem = Model.Microphone; OutputBox.SelectedItem = Model.Output; }
+        finally { _showingDevices = false; }
+    }
+
+    private void OnDeviceChosen(object? sender, SelectionChangedEventArgs e)
+    {
+        if (_showingDevices || sender is not ComboBox { SelectedItem: DeviceOption choice } box) return;
+        if (box == MicrophoneBox) Model.Microphone = choice; else Model.Output = choice;
+        ShowChosenDevices(); // выбор могли не принять (запись идёт) — вернуть показанный
     }
 
     private async Task RefreshPreviewAsync()
@@ -152,6 +174,70 @@ public partial class MainWindow : Window
         var format = Model.Format;
         await session.StartRecordingAsync(() => new RecordingSink(Path.Combine(RecordingsFolder(), name), format));
     });
+
+    private async void OnOpenSettings(object? sender, RoutedEventArgs e)
+    {
+        var settings = new SettingsModel(Model.Format, Model.CanStartRecording);
+        string folder = Path.Combine(Path.GetTempPath(), "EliteRec-check-" + Guid.NewGuid().ToString("N")[..8]);
+        try
+        {
+            if (await new SettingsWindow(settings, s => RunSelfTestAsync(s, folder)).ShowDialog<bool>(this))
+                Model.Format = settings.SelectedFormat.Value;
+        }
+        finally
+        {
+            try { if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true); }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { Console.Error.WriteLine(ex.Message); }
+        }
+    }
+
+    /// <summary>
+    /// Самопроверка: короткая настоящая запись (WAV во временную папку) через ту же сессию, что и
+    /// обычная запись, — проверяет весь путь звука, а не только индикатор. Потом сессия открывается заново,
+    /// чтобы на главном экране не осталось «Сохранено …» от пробы.
+    /// </summary>
+    private async Task RunSelfTestAsync(SettingsModel settings, string folder)
+    {
+        if (_closing || _busy || _session is not { } session || Model.IsRecording) return;
+        _busy = true;
+        settings.Begin();
+        float microphone = 0, system = 0;
+        try
+        {
+            Directory.CreateDirectory(folder);
+            await session.StartRecordingAsync(() => new RecordingSink(Path.Combine(folder, "check"), RecordingFormat.Wav));
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            while (clock.Elapsed < SettingsModel.TestLength && !_closing)
+            {
+                await Task.Delay(50);
+                var snapshot = session.Snapshot;
+                microphone = Math.Max(microphone, snapshot.MicrophonePeak); system = Math.Max(system, snapshot.SystemPeak);
+                settings.Report(snapshot.MicrophonePeak, snapshot.SystemPeak, SettingsModel.TestLength - clock.Elapsed);
+            }
+            await session.StopRecordingAsync();
+            settings.Finish(microphone, system, session.Snapshot.Files?.StereoPath);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or IOException or UnauthorizedAccessException)
+        { settings.Fail(ex.Message); }
+        finally
+        {
+            _busy = false;
+            _route = default; // пересоздать сессию предпрослушивания
+            if (!_closing) await RefreshPreviewAsync();
+        }
+    }
+
+    private void OnOpenFolder(object? sender, RoutedEventArgs e)
+    {
+        string folder = RecordingsFolder();
+        try
+        {
+            Directory.CreateDirectory(folder);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("xdg-open", [folder]) { UseShellExecute = false })?.Dispose();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        { ShowError(ex.Message); }
+    }
 
     private static string RecordingsFolder()
     {

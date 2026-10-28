@@ -3,8 +3,8 @@
   <resheader name="version"><value>2.0</value></resheader>
   <data name="You" xml:space="preserve"><value>Вы</value></data>
   <data name="SystemAudio" xml:space="preserve"><value>Система</value></data>
-  <data name="ManagerChannel" xml:space="preserve"><value>L · микрофон менеджера</value></data>
-  <data name="ClientChannel" xml:space="preserve"><value>R · звук клиента</value></data>
+  <data name="ManagerChannel" xml:space="preserve"><value>L · микрофон</value></data>
+  <data name="ClientChannel" xml:space="preserve"><value>R · клиент</value></data>
   <data name="PreviewHint" xml:space="preserve"><value>Выберите микрофон и вывод, через который слышен клиент.</value></data>
   <data name="StartRecording" xml:space="preserve"><value>Начать запись</value></data>
   <data name="RecordingUnavailable" xml:space="preserve"><value>Предварительная версия · запись пока недоступна</value></data>
@@ -13,6 +13,7 @@
   <data name="SystemMissing" xml:space="preserve"><value>Системный (недоступен)</value></data>
   <data name="Missing" xml:space="preserve"><value>{0} — недоступно</value></data>
   <data name="Connecting" xml:space="preserve"><value>Подключение к аудиосерверу…</value></data>
+  <data name="ReadyToRecord" xml:space="preserve"><value>Готов к записи</value></data>
   <data name="DevicesReady" xml:space="preserve"><value>Устройства доступны</value></data>
   <data name="DeviceMissing" xml:space="preserve"><value>Выбранное устройство недоступно. Выбор сохранён.</value></data>
   <data name="ServerMissing" xml:space="preserve"><value>Аудиосервер недоступен. Повторяем подключение…</value></data>
@@ -23,7 +24,7 @@
   <data name="Stop" xml:space="preserve"><value>Стоп</value></data>
   <data name="RecordingNotice" xml:space="preserve"><value>Идёт запись — предупредите клиента</value></data>
   <data name="PausedNotice" xml:space="preserve"><value>Пауза — не пишется</value></data>
-  <data name="LivePreview" xml:space="preserve"><value>Предпрослушивание · {0} · два файла</value></data>
+  <data name="LivePreview" xml:space="preserve"><value>Скажите что-нибудь и включите звук в Zoom — обе стороны должны ожить</value></data>
   <data name="Saved" xml:space="preserve"><value>Сохранено:</value></data>
   <data name="RecordingsFolder" xml:space="preserve"><value>Записи EliteRec</value></data>
   <data name="RecordingStatus" xml:space="preserve"><value>Идёт запись</value></data>
@@ -45,4 +46,24 @@
   <data name="HeadsetSilent" xml:space="preserve"><value>Гарнитура молчит (выключена?), пишем с системного микрофона</value></data>
   <data name="HeadsetSilentAlone" xml:space="preserve"><value>Микрофон молчит (гарнитура выключена?) — включите её</value></data>
   <data name="SilentNote" xml:space="preserve"><value>(выбранное устройство молчит — выключено?)</value></data>
+  <data name="OpenFolder" xml:space="preserve"><value>Открыть папку записей</value></data>
+  <data name="Settings" xml:space="preserve"><value>Настройки</value></data>
+  <data name="FormatMp3" xml:space="preserve"><value>Компактный, удобно отправлять</value></data>
+  <data name="FormatFlac" xml:space="preserve"><value>Без потерь, файл крупнее</value></data>
+  <data name="FormatOpus" xml:space="preserve"><value>Самый компактный, хорошее качество речи</value></data>
+  <data name="FormatWav" xml:space="preserve"><value>Без сжатия, самый крупный</value></data>
+  <data name="SelfTest" xml:space="preserve"><value>Проверка записи</value></data>
+  <data name="SelfTestHint" xml:space="preserve"><value>Скажите фразу и включите любой звук на компьютере — запишем {0} секунд и проверим обе стороны.</value></data>
+  <data name="SelfTestRun" xml:space="preserve"><value>Проверить</value></data>
+  <data name="SelfTestRunning" xml:space="preserve"><value>Идёт проверка… {0} с</value></data>
+  <data name="SelfTestUnavailable" xml:space="preserve"><value>Проверка доступна, когда оба устройства на месте и запись не идёт.</value></data>
+  <data name="SelfTestFailed" xml:space="preserve"><value>Проверка не удалась:</value></data>
+  <data name="MicHeard" xml:space="preserve"><value>Микрофон слышно</value></data>
+  <data name="MicNotHeard" xml:space="preserve"><value>Микрофон не слышно — проверьте устройство и громкость</value></data>
+  <data name="SystemHeard" xml:space="preserve"><value>Систему слышно</value></data>
+  <data name="SystemNotHeard" xml:space="preserve"><value>Системы не слышно — включите звук или выберите другой вывод</value></data>
+  <data name="Listen" xml:space="preserve"><value>Прослушать</value></data>
+  <data name="ListenHint" xml:space="preserve"><value>Стерео-файл пробы: слева вы, справа система</value></data>
+  <data name="Save" xml:space="preserve"><value>Сохранить</value></data>
+  <data name="Cancel" xml:space="preserve"><value>Отмена</value></data>
 </root>

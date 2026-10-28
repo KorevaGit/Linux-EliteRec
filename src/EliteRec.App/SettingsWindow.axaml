@@ -1,0 +1,140 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="using:EliteRec.App"
+        xmlns:res="using:EliteRec.App.Resources"
+        x:Class="EliteRec.App.SettingsWindow" x:DataType="app:SettingsModel"
+        Title="{x:Static res:Text.Settings}" Width="400" Height="592" CanResize="False"
+        Background="Transparent" TransparencyLevelHint="Transparent" WindowDecorations="None" Foreground="#ECE8DF"
+        WindowStartupLocation="CenterOwner" Icon="avares://EliteRec.App/Assets/eliterec.png">
+  <!-- Настройки в стиле главного окна (макет 6): формат применяется только по «Сохранить»; самопроверка записи. -->
+  <Window.Styles>
+    <Style Selector="TextBlock.caption">
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="FontWeight" Value="Bold" />
+      <Setter Property="LetterSpacing" Value="1" />
+      <Setter Property="Foreground" Value="#8C877C" />
+    </Style>
+    <Style Selector="ListBox.formats">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="0" />
+    </Style>
+    <Style Selector="ListBox.formats ListBoxItem">
+      <Setter Property="Padding" Value="12,8" />
+      <Setter Property="Margin" Value="0,0,0,6" />
+      <Setter Property="CornerRadius" Value="12" />
+      <Setter Property="Background" Value="#0AFFFFFF" />
+      <Setter Property="BorderBrush" Value="#17FFFFFF" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+    <Style Selector="ListBox.formats ListBoxItem:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#14FFFFFF" />
+    </Style>
+    <Style Selector="ListBox.formats ListBoxItem:selected /template/ ContentPresenter">
+      <Setter Property="Background" Value="#1FD6B35C" />
+      <Setter Property="BorderBrush" Value="#99D6B35C" />
+    </Style>
+    <Style Selector="ProgressBar.meter">
+      <Setter Property="Background" Value="#14FFFFFF" />
+      <Setter Property="Height" Value="8" />
+      <Setter Property="MinHeight" Value="8" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Minimum" Value="0" />
+      <Setter Property="Maximum" Value="1" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.pill">
+      <Setter Property="Height" Value="40" />
+      <Setter Property="CornerRadius" Value="20" />
+      <Setter Property="Padding" Value="18,0" />
+      <Setter Property="Background" Value="#0AFFFFFF" />
+      <Setter Property="BorderBrush" Value="#1FFFFFFF" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Foreground" Value="#ECE8DF" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.pill:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#1AFFFFFF" />
+    </Style>
+    <Style Selector="Button.primary">
+      <Setter Property="Background" Value="#D6B35C" />
+      <Setter Property="Foreground" Value="#121315" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="FontWeight" Value="Bold" />
+    </Style>
+    <Style Selector="Button.primary:pointerover /template/ ContentPresenter">
+      <Setter Property="Background" Value="#E6C470" />
+    </Style>
+    <Style Selector="TextBlock.result"><Setter Property="Foreground" Value="#F0D48A" /></Style>
+    <Style Selector="TextBlock.result.ok"><Setter Property="Foreground" Value="#8FD19E" /></Style>
+  </Window.Styles>
+
+  <!-- Окно без системных рамок: свой заголовок (app:TitleBar) повторяет системный, фон — цвет окна, как в EliteSIP.
+       Скругление верхних углов — как у темы xfwm. -->
+  <Border Classes="frame">
+    <Border Classes="frame-inner">
+      <DockPanel>
+        <app:TitleBar DockPanel.Dock="Top" />
+        <Grid Margin="22" RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="12">
+          <TextBlock Classes="caption" Text="ФОРМАТ ЗАПИСИ" />
+          <ListBox Grid.Row="1" Classes="formats" ItemsSource="{Binding Formats}" SelectedItem="{Binding SelectedFormat, Mode=TwoWay}" IsEnabled="{Binding IsIdle}"
+                   AutomationProperties.Name="Формат записи">
+            <ListBox.ItemTemplate>
+              <DataTemplate x:DataType="app:FormatItem">
+                <StackPanel Orientation="Horizontal" Spacing="12">
+                  <TextBlock Text="{Binding Title}" FontWeight="Bold" Width="44" VerticalAlignment="Center" />
+                  <TextBlock Text="{Binding Hint}" Foreground="#A9A397" FontSize="12" VerticalAlignment="Center" />
+                </StackPanel>
+              </DataTemplate>
+            </ListBox.ItemTemplate>
+          </ListBox>
+
+          <TextBlock Grid.Row="2" Classes="caption" Text="ПРОВЕРКА ЗАПИСИ" Margin="0,8,0,0" />
+          <Border Grid.Row="3" CornerRadius="14" Padding="14" Background="#0AFFFFFF" BorderBrush="#17FFFFFF" BorderThickness="1"
+                  BoxShadow="0 10 28 0 #73000000" VerticalAlignment="Top">
+            <StackPanel Spacing="12">
+              <TextBlock Text="{Binding TestStatus}" TextWrapping="Wrap" FontSize="12" Foreground="#A9A397" />
+              <Grid ColumnDefinitions="22,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="4">
+                <app:Icon Kind="mic.fill" Foreground="#D6B35C" Width="18" Height="18" VerticalAlignment="Center" />
+                <ProgressBar Grid.Column="1" Classes="meter" Value="{Binding MicLevel}" Foreground="#D6B35C" />
+<StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasResult}">
+                  <Panel Width="14" Height="14" VerticalAlignment="Top" Margin="0,1,0,0">
+                    <app:Icon Kind="checkmark.circle" Foreground="#8FD19E" IsVisible="{Binding MicHeard}" />
+                    <app:Icon Kind="exclamationmark.circle" Foreground="#F0D48A" IsVisible="{Binding !MicHeard}" />
+                  </Panel>
+                  <TextBlock Classes="result" Classes.ok="{Binding MicHeard}" Text="{Binding MicResult}" FontSize="12" TextWrapping="Wrap" MaxWidth="290" />
+                </StackPanel>
+              </Grid>
+              <Grid ColumnDefinitions="22,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="4">
+                <app:Icon Kind="speaker.wave.2" Foreground="#7FB0E8" Width="18" Height="18" VerticalAlignment="Center" />
+                <ProgressBar Grid.Column="1" Classes="meter" Value="{Binding SystemLevel}" Foreground="#7FB0E8" />
+<StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="6" IsVisible="{Binding HasResult}">
+                  <Panel Width="14" Height="14" VerticalAlignment="Top" Margin="0,1,0,0">
+                    <app:Icon Kind="checkmark.circle" Foreground="#8FD19E" IsVisible="{Binding SystemHeard}" />
+                    <app:Icon Kind="exclamationmark.circle" Foreground="#F0D48A" IsVisible="{Binding !SystemHeard}" />
+                  </Panel>
+                  <TextBlock Classes="result" Classes.ok="{Binding SystemHeard}" Text="{Binding SystemResult}" FontSize="12" TextWrapping="Wrap" MaxWidth="290" />
+                </StackPanel>
+              </Grid>
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <Button Classes="pill" Content="{x:Static res:Text.SelfTestRun}" IsEnabled="{Binding CanTest}" Click="OnRunTest" />
+                <Button Classes="pill" IsVisible="{Binding CanListen}" Click="OnListen" ToolTip.Tip="{x:Static res:Text.ListenHint}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <app:Icon Kind="play.fill" Foreground="#ECE8DF" Width="16" Height="16" VerticalAlignment="Center" />
+                    <TextBlock Text="{x:Static res:Text.Listen}" VerticalAlignment="Center" />
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </StackPanel>
+          </Border>
+
+          <StackPanel Grid.Row="4" Orientation="Horizontal" Spacing="10" HorizontalAlignment="Right">
+            <Button Classes="pill" Content="{x:Static res:Text.Cancel}" IsEnabled="{Binding IsIdle}" Click="OnCancel" />
+            <Button Name="SaveButton" Classes="pill primary" Content="{x:Static res:Text.Save}" IsEnabled="{Binding IsIdle}" Click="OnSave" />
+          </StackPanel>
+        </Grid>
+      </DockPanel>
+    </Border>
+  </Border>
+</Window>

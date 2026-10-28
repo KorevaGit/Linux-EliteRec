@@ -13,7 +13,8 @@
 R3: окно пишет MP3, FLAC, Opus или WAV и после падения предлагает восстановить
 запись ([docs/R3-ENCODING.md](docs/R3-ENCODING.md)). R4: пропавшее во время
 записи устройство заменяется системным и возвращается, когда появится
-([docs/R4-DEVICES.md](docs/R4-DEVICES.md)). Трей пока не подключён.
+([docs/R4-DEVICES.md](docs/R4-DEVICES.md)). R5: окно по макету 6 «Стеклянная волна», настройки с самопроверкой записи
+([docs/R5-INTERFACE.md](docs/R5-INTERFACE.md)). Трей пока не подключён.
 
 Алгоритм и текущие результаты — [docs/R2-AUDIO.md](docs/R2-AUDIO.md).
 

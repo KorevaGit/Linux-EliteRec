@@ -1,0 +1,39 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="EliteRec.App.TitleBar" Height="32" Background="Transparent">
+  <!-- Заголовок как системный (xfwm, тема рабочего стола EliteLinux): название по центру, «свернуть», «развернуть»,
+       синий круг «закрыть», размеры сняты со снимка экрана. Отличается только фоном — цвет окна, как в EliteSIP. -->
+  <UserControl.Styles>
+    <Style Selector="Button.caption">
+      <Setter Property="Width" Value="28" />
+      <Setter Property="Height" Value="28" />
+      <Setter Property="Padding" Value="0" />
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="CornerRadius" Value="14" />
+      <Setter Property="HorizontalContentAlignment" Value="Center" />
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+    <Style Selector="Button.caption:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="#1AFFFFFF" /></Style>
+    <Style Selector="Button.close:pointerover /template/ ContentPresenter"><Setter Property="Background" Value="Transparent" /></Style>
+    <Style Selector="Button.close:pointerover Ellipse"><Setter Property="Fill" Value="#3AAEEA" /></Style>
+  </UserControl.Styles>
+  <Grid ColumnDefinitions="*,Auto">
+    <TextBlock Name="TitleText" Grid.ColumnSpan="2" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="14" Foreground="#D4D4D6" />
+    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="0" Margin="0,0,3,0">
+      <Button Name="MinimizeButton" Classes="caption" Click="OnMinimize" AutomationProperties.Name="Свернуть">
+        <Rectangle Width="8" Height="1" Fill="#E2E2E3" Margin="0,7,0,0" />
+      </Button>
+      <Button Name="MaximizeButton" Classes="caption" Click="OnMaximize" AutomationProperties.Name="Развернуть">
+        <Rectangle Width="8" Height="8" Stroke="#E2E2E3" StrokeThickness="1" />
+      </Button>
+      <Button Classes="caption close" Click="OnClose" AutomationProperties.Name="Закрыть">
+        <Panel Width="18" Height="18">
+          <Ellipse Fill="#1F9EDE" />
+          <Path Data="M5.5,5.5 L12.5,12.5 M12.5,5.5 L5.5,12.5" Stroke="#FCFEFF" StrokeThickness="1.6" StrokeLineCap="Round" />
+        </Panel>
+      </Button>
+    </StackPanel>
+  </Grid>
+</UserControl>

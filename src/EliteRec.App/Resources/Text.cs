@@ -8,6 +8,14 @@ public static class Text
     private static readonly ResourceManager Resources = new("EliteRec.App.Resources.Strings", typeof(Text).Assembly);
     public static string Get(string key) => Resources.GetString(key, CultureInfo.CurrentUICulture) ?? key;
     public static string You => Get(nameof(You));
+    public static string Settings => Get(nameof(Settings));
+    public static string SelfTest => Get(nameof(SelfTest));
+    public static string SelfTestRun => Get(nameof(SelfTestRun));
+    public static string Listen => Get(nameof(Listen));
+    public static string ListenHint => Get(nameof(ListenHint));
+    public static string Save => Get(nameof(Save));
+    public static string Cancel => Get(nameof(Cancel));
+    public static string ReadyToRecord => Get(nameof(ReadyToRecord));
     public static string SystemAudio => Get(nameof(SystemAudio));
     public static string ManagerChannel => Get(nameof(ManagerChannel));
     public static string ClientChannel => Get(nameof(ClientChannel));
@@ -19,4 +27,5 @@ public static class Text
     public static string Recover => Get(nameof(Recover));
     public static string Discard => Get(nameof(Discard));
     public static string FormatLabel => Get(nameof(FormatLabel));
+    public static string OpenFolder => Get(nameof(OpenFolder));
 }

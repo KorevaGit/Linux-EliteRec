@@ -1,10 +1,30 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="EliteRec.App.App" RequestedThemeVariant="Dark">
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.MergedDictionaries>
+        <ResourceInclude Source="avares://EliteRec.App/Icons.axaml" />
+      </ResourceDictionary.MergedDictionaries>
+    </ResourceDictionary>
+  </Application.Resources>
   <Application.Styles>
     <SimpleTheme />
     <Style Selector="Window"><Setter Property="Background" Value="#101010" /><Setter Property="Foreground" Value="#F4F4F4" /><Setter Property="FontSize" Value="13" /></Style>
     <Style Selector="ComboBox"><Setter Property="Background" Value="#292929" /><Setter Property="Foreground" Value="#F4F4F4" /><Setter Property="CornerRadius" Value="6" /></Style>
     <Style Selector="Button"><Setter Property="CornerRadius" Value="6" /></Style>
+    <!-- Рамка окон EliteRec (окна без системных рамок, см. TitleBar) -->
+    <Style Selector="Border.frame">
+      <Setter Property="CornerRadius" Value="7,7,0,0" />
+      <Setter Property="BorderBrush" Value="#050505" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="Background" Value="#0C0D10" />
+      <Setter Property="ClipToBounds" Value="True" />
+    </Style>
+    <Style Selector="Border.frame-inner">
+      <Setter Property="CornerRadius" Value="6,6,0,0" />
+      <Setter Property="BorderBrush" Value="#373737" />
+      <Setter Property="BorderThickness" Value="0,1,0,0" />
+    </Style>
   </Application.Styles>
 </Application>

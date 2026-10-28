@@ -1,0 +1,47 @@
+using System.Diagnostics;
+using Avalonia.Controls;
+using Avalonia.Interactivity;
+
+namespace EliteRec.App;
+
+public partial class SettingsWindow : Window
+{
+    private readonly Func<SettingsModel, Task>? _runTest;
+    private Process? _player;
+    private SettingsModel Model => (SettingsModel)DataContext!;
+
+    public SettingsWindow() : this(new SettingsModel(default, false), null) { }
+
+    /// <param name="runTest">Пробная запись через сессию главного окна; результат — в модель.</param>
+    public SettingsWindow(SettingsModel model, Func<SettingsModel, Task>? runTest)
+    {
+        InitializeComponent();
+        DataContext = model;
+        _runTest = runTest;
+        Closing += (_, e) => { if (Model.IsTesting) e.Cancel = true; else StopPlayer(); };
+    }
+
+    private async void OnRunTest(object? sender, RoutedEventArgs e)
+    {
+        StopPlayer();
+        if (_runTest is not null) await _runTest(Model);
+    }
+
+    private void OnListen(object? sender, RoutedEventArgs e)
+    {
+        if (Model.TestFile is not { } file) return;
+        StopPlayer();
+        try { _player = Process.Start(new ProcessStartInfo("paplay", [file]) { UseShellExecute = false }); }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException) { Model.Fail(ex.Message); }
+    }
+
+    private void StopPlayer()
+    {
+        try { if (_player is { HasExited: false }) _player.Kill(); }
+        catch (InvalidOperationException) { }
+        _player?.Dispose(); _player = null;
+    }
+
+    private void OnCancel(object? sender, RoutedEventArgs e) => Close(false);
+    private void OnSave(object? sender, RoutedEventArgs e) => Close(true);
+}
