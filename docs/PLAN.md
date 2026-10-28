@@ -175,10 +175,13 @@ projects/
   второй запуск, SIGTERM, CI на Debian 13; для слабых ПК нагрузка окна снижена
   с 16 % до 2,8 % ядра (0,4 % в трее), подвисания системы до 12 с больше не
   обрывают запись — [LINUX-AUDIT.md](LINUX-AUDIT.md).
-- **R6 начат:** пакет `.deb` (self-contained с ReadyToRun, `/opt/eliterec`,
+- **R6 почти готов:** пакет `.deb` (self-contained с ReadyToRun, `/opt/eliterec`,
   ярлык, автозапуск в трей, значки) ставится через `apt` на чистые Debian 13 и
-  Ubuntu 24.04 (основа Mint 22), кодеки работают; собирается и проверяется в CI.
-  Обновляльщик ещё не сделан — [R6-PACKAGING.md](R6-PACKAGING.md).
+  Ubuntu 24.04 (основа Mint 22). Обновление — как у EliteSIP: root-служба
+  `eliterec-updater`, подписанный Ed25519 манифест со своим ключом линии, каталог
+  `releases/eliterec/linux/` на `elitesip_update`, **никогда во время записи**.
+  Проверено сквозь в Debian 13 (в том числе службой systemd). Осталось развернуть
+  сервер и выпустить первую версию — [R6-PACKAGING.md](R6-PACKAGING.md).
 - **R7 не выполнен.**
 
 ---

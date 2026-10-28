@@ -5,9 +5,10 @@ Priority: optional
 Architecture: amd64
 Maintainer: @MAINTAINER@
 Installed-Size: @SIZE@
-Depends: libc6, libstdc++6, libgcc-s1, zlib1g, libicu76 | libicu74 | libicu72, libfontconfig1, libfreetype6, libx11-6, libxi6, libxrandr2, libxcursor1, libxext6, libxfixes3, libice6, libsm6, libpulse0, libmp3lame0, libflac14 | libflac12t64 | libflac12, libopus0, xdg-utils
+Depends: libc6, libstdc++6, libgcc-s1, zlib1g, libicu76 | libicu74 | libicu72, libfontconfig1, libfreetype6, libx11-6, libxi6, libxrandr2, libxcursor1, libxext6, libxfixes3, libice6, libsm6, libpulse0, libmp3lame0, libflac14 | libflac12t64 | libflac12, libopus0, xdg-utils, systemd
 Recommends: pipewire-bin | pulseaudio-utils, libgl1
 Description: EliteRec — запись Zoom и Телемоста для расшифровки
  Пишет микрофон менеджера и звук системы в один стерео-файл: слева
  менеджер, справа клиент. Для Linux Mint 22, Ubuntu 24.04 и Debian 13
- (X11). Программа ставится в /opt/eliterec вместе с рантаймом .NET.
+ (X11). Программа ставится в /opt/eliterec вместе с рантаймом .NET;
+ обновления ставит служба eliterec-updater от root, и никогда — во время записи.

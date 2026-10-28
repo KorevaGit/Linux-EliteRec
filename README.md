@@ -47,4 +47,7 @@ Debian 13:
 sudo apt install ./artifacts/EliteRec-0.1.0.deb
 ```
 
-Подробности — [docs/R6-PACKAGING.md](docs/R6-PACKAGING.md).
+Дальше программа обновляется сама с канала `update.elitesip.vip` (служба
+`eliterec-updater`, раз в 10 минут, никогда во время записи). Выпуск —
+`packaging/release.sh`, выкладка — `packaging/publish.sh`. Подробности —
+[docs/R6-PACKAGING.md](docs/R6-PACKAGING.md).

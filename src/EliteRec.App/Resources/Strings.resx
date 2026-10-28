@@ -87,4 +87,5 @@
   <data name="SaveMono" xml:space="preserve"><value>Также сохранять общий файл (моно)</value></data>
   <data name="FilesHint" xml:space="preserve"><value>Основной файл — стерео: слева вы, справа клиент. Его отправляют на расшифровку.</value></data>
   <data name="MixHint" xml:space="preserve"><value>Громкость сторон в общем файле. Стерео-файл не меняется.</value></data>
+  <data name="UpdateInstalling" xml:space="preserve"><value>Сейчас ставится обновление EliteRec — меньше минуты. Программа перезапустится сама, тогда начните запись.</value></data>
 </root>

@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>EliteRec.Updater</AssemblyName>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../shared/src/EliteRec.Updates/EliteRec.Updates.csproj" />
+    <InternalsVisibleTo Include="EliteRec.Core.Tests" />
+  </ItemGroup>
+</Project>

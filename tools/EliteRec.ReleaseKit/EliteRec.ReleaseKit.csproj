@@ -1,0 +1,10 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>releasekit</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Проверка после подписи — кодом обновляльщика, а не своей копией: иначе скрипт согласен сам с собой -->
+    <ProjectReference Include="../../shared/src/EliteRec.Updates/EliteRec.Updates.csproj" />
+  </ItemGroup>
+</Project>

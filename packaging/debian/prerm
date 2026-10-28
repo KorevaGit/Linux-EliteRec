@@ -1,0 +1,15 @@
+#!/bin/sh
+# Перед удалением (не обновлением): такт обновлений больше не нужен. Запущенные у менеджеров
+# программы не трогаем — их закроет выход из сеанса.
+set -e
+
+case "$1" in
+    remove)
+        if [ -d /run/systemd/system ]; then
+            systemctl disable --now eliterec-updater.timer || true
+            systemctl stop eliterec-updater.service || true
+        fi
+        ;;
+esac
+
+exit 0

@@ -30,6 +30,7 @@ public partial class MainWindow : Window
     private Tray? _tray;
     private bool _quitting, _toldAboutTray;
     private int _blink;
+    private readonly EliteRec.Updates.UpdateCoordination _updates = new();
     private PosixSignalRegistration[] _terminate = [];
 
     private void OnTerminate(PosixSignalContext context)
@@ -39,7 +40,7 @@ public partial class MainWindow : Window
         {
             try { if (_session is { } session) await session.DisposeAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(10)); }
             catch (Exception ex) { Console.Error.WriteLine(ex.Message); }
-            finally { Environment.Exit(0); }
+            finally { _updates.EndRecording(); Environment.Exit(0); }
         });
     }
     private const double SilenceLimit = 3;
@@ -63,6 +64,7 @@ public partial class MainWindow : Window
             // Точка «пишем» мигает раз в 0,8 с — два кадра вместо анимации с частотой экрана.
             TimerDot.Opacity = Model.IsLive && ++_blink / 16 % 2 == 1 ? .3 : 1;
             if (!Model.Animate && !Model.IsRecording) PaceTimer(); // запись кончилась, окно спрятано
+            if (!Model.IsRecording && !_busy) _updates.EndRecording(); // «Стоп», сбой — обновлению больше не мешаем
             _ = FollowDevicesAsync(); // поток мог умереть и без события об устройстве
         };
         _meterTimer.Start();
@@ -273,6 +275,8 @@ public partial class MainWindow : Window
 
     private async void OnStartRecording(object? sender, RoutedEventArgs e)
     {
+        // «Не обновлять во время записи»: сначала своя отметка «пишу», потом проверка установки (UpdateCoordination).
+        if (!_updates.TryBeginRecording(Environment.ProcessId)) { ShowError(Text.Get("UpdateInstalling")); return; }
         bool started = false;
         await RunCommandAsync(async session =>
         {
@@ -286,6 +290,7 @@ public partial class MainWindow : Window
             await session.StartRecordingAsync(() => new RecordingSink(basePath, format, mono: preferences.SaveMono));
             started = true;
         });
+        if (!started) _updates.EndRecording();
         PaceTimer();
         // План: «При старте записи — „Идёт запись — предупредите клиента“».
         if (started) await Desktop.NotifyAsync(Text.Get("RecordingStartedTitle"), Text.Get("RecordingStartedBody"), IconFile());
@@ -320,6 +325,7 @@ public partial class MainWindow : Window
     private async Task RunSelfTestAsync(SettingsModel settings, string folder)
     {
         if (_closing || _busy || _session is not { } session || Model.IsRecording) return;
+        if (!_updates.TryBeginRecording(Environment.ProcessId)) { settings.Fail(Text.Get("UpdateInstalling")); return; }
         _busy = true;
         settings.Begin();
         float microphone = 0, system = 0;
@@ -342,6 +348,7 @@ public partial class MainWindow : Window
         { settings.Fail(ex.Message); }
         finally
         {
+            _updates.EndRecording();
             _busy = false;
             _route = default; // пересоздать сессию предпрослушивания
             if (!_closing) await RefreshPreviewAsync();
@@ -420,6 +427,7 @@ public partial class MainWindow : Window
     private async void OnStopRecording(object? sender, RoutedEventArgs e)
     {
         await RunCommandAsync(session => session.StopRecordingAsync());
+        _updates.EndRecording();
         var files = _session?.Snapshot.Files;
         if (!_closing) { Model.Apply(_devices); await RefreshPreviewAsync(); }
         if (files is null || _closing || !File.Exists(files.StereoPath)) return;
@@ -482,7 +490,7 @@ public partial class MainWindow : Window
             finally { if (_watch is not null) await _watch.DisposeAsync(); }
         }
         catch (Exception ex) { Console.Error.WriteLine(ex.Message); }
-        finally { _previewGate.Release(); _tray?.Dispose(); _tray = null; _allowClose = true; Close(); }
+        finally { _previewGate.Release(); _tray?.Dispose(); _tray = null; _updates.EndRecording(); _allowClose = true; Close(); }
     }
 
     private static MainPanelModel CreateModel()

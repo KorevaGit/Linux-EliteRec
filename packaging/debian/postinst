@@ -1,0 +1,23 @@
+#!/bin/sh
+# После установки и обновления: общий каталог отметок записи и такт обновлений.
+#
+# /var/lib/eliterec/updates — 1777, как /tmp: отметку «пишу» ставит программа менеджера без прав
+# администратора (UpdateCoordination). Каталог — здесь, а не в архиве: права должны быть такими на
+# каждой машине, даже если каталог уже был.
+#
+# Обновляльщика здесь не трогаем: при обновлении с канала этот сценарий идёт внутри его же установки.
+set -e
+
+case "$1" in
+    configure)
+        install -d -o root -g root -m 0755 /var/lib/eliterec
+        install -d -o root -g root -m 1777 /var/lib/eliterec/updates
+
+        if [ -d /run/systemd/system ]; then
+            systemctl daemon-reload || true
+            systemctl enable --now eliterec-updater.timer || true
+        fi
+        ;;
+esac
+
+exit 0

@@ -6,6 +6,8 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4"><PrivateAssets>all</PrivateAssets></PackageReference>
     <ProjectReference Include="../../shared/src/EliteRec.Core/EliteRec.Core.csproj" />
     <ProjectReference Include="../../shared/src/EliteRec.Encoding/EliteRec.Encoding.csproj" />
+    <ProjectReference Include="../../shared/src/EliteRec.Updates/EliteRec.Updates.csproj" />
+    <ProjectReference Include="../../src/EliteRec.Updater/EliteRec.Updater.csproj" />
   </ItemGroup>
   <ItemGroup><None Update="Fixtures/*.json" CopyToOutputDirectory="PreserveNewest" /></ItemGroup>
 </Project>

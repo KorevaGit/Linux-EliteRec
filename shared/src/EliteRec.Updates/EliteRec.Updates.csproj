@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Ed25519 — как у EliteSIP (PanelLink): BouncyCastle, управляемый код без нативных зависимостей -->
+    <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
+    <InternalsVisibleTo Include="EliteRec.Core.Tests" />
+  </ItemGroup>
+</Project>

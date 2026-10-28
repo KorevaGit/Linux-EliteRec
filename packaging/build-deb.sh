@@ -3,15 +3,22 @@
 # Пакет .deb: самодостаточная публикация с ReadyToRun, раскладка по системе, сборка пакета.
 # Устроено как tools/build-deb.sh у EliteSIP для Linux — те же пути и правила.
 #
-#   packaging/build-deb.sh --version 0.1.0
+#   packaging/build-deb.sh --version 0.1.0 --provisioning ~/.config/EliteRec-release/provisioning.json
+#
+# Без --provisioning пакет собирается (проверка установки, CI), но обновляться не будет: нет канала
+# и ключа линии. Выпуск собирает packaging/release.sh — всегда с заводской настройкой.
 #
 # Что где ляжет:
 #
 #   /opt/eliterec/                         программа и рантайм .NET (root, менеджер не пишет)
 #     EliteRec                             приложение — его зовут ярлык и автозапуск
+#     eliterec-updater                     обновляльщик — его зовёт eliterec-updater.service
+#     provisioning.json                    заводская настройка: канал, пара, открытый ключ линии
 #   /usr/share/applications/eliterec.desktop
 #   /etc/xdg/autostart/eliterec.desktop    автозапуск в трей (--tray), выключается у себя
 #   /usr/share/icons/hicolor/*/apps/eliterec.png
+#   /usr/lib/systemd/system/eliterec-updater.{service,timer}
+#   /var/lib/eliterec/{updates,updater}     создают postinst и systemd
 #   /usr/share/doc/eliterec/{copyright,changelog.gz}
 #
 # Зависимости (packaging/debian/control) — с альтернативами под Debian 13 и Mint 22:
@@ -21,6 +28,7 @@ set -euo pipefail
 
 root=$(cd "$(dirname "$0")/.." && pwd)
 version=
+provisioning=
 output="$root/artifacts"
 maintainer="EliteSIP"
 # Две параллельные сборки: ReadyToRun на всех ядрах съедает память (урок EliteSIP).
@@ -28,7 +36,7 @@ jobs=${ELITEREC_BUILD_JOBS:-2}
 
 usage() {
     sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'
-    echo "ключи: --version X.Y.Z [--output КАТАЛОГ] [--maintainer ИМЯ]"
+    echo "ключи: --version X.Y.Z [--provisioning ФАЙЛ] [--output КАТАЛОГ] [--maintainer ИМЯ]"
     exit 2
 }
 
@@ -40,6 +48,7 @@ fail() {
 while [ $# -gt 0 ]; do
     case "$1" in
         --version) version=$2; shift 2 ;;
+        --provisioning) provisioning=$2; shift 2 ;;
         --output) output=$2; shift 2 ;;
         --maintainer) maintainer=$2; shift 2 ;;
         *) usage ;;
@@ -47,6 +56,7 @@ while [ $# -gt 0 ]; do
 done
 
 [[ $version =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || usage
+[ -z "$provisioning" ] || [ -f "$provisioning" ] || fail "нет заводской настройки $provisioning"
 command -v dpkg-deb >/dev/null || fail "нет dpkg-deb"
 
 stage="$root/artifacts/package/eliterec_$version"
@@ -60,29 +70,44 @@ mkdir -p "$program" "$output"
 # машину — ещё один источник пакетов мимо нашей линии. ReadyToRun — меньше JIT при
 # запуске: на HDD и A6 это секунды до появления окна.
 
-echo "== публикация $version"
-dotnet publish "$root/src/EliteRec.App/EliteRec.App.csproj" \
-    --configuration Release \
-    --runtime linux-x64 \
-    --self-contained true \
-    --output "$program" \
-    --nologo \
-    --disable-build-servers \
-    -maxcpucount:"$jobs" \
-    -p:Version="$version" \
-    -p:PublishReadyToRun=true \
-    -p:DisableTransitiveFrameworkReferenceDownloads=true \
-    -p:DebugType=none \
-    || fail "не опубликовался EliteRec.App"
+publish() {
+    dotnet publish "$root/$1" \
+        --configuration Release \
+        --runtime linux-x64 \
+        --self-contained true \
+        --output "$program" \
+        --nologo \
+        --disable-build-servers \
+        -maxcpucount:"$jobs" \
+        -p:Version="$version" \
+        -p:PublishReadyToRun=true \
+        -p:DisableTransitiveFrameworkReferenceDownloads=true \
+        -p:DebugType=none \
+        || fail "не опубликовался $1"
+}
 
-# Короткое имя: по нему ищут процесс и зовут ярлык.
+echo "== публикация $version"
+publish src/EliteRec.App/EliteRec.App.csproj
+# Обновляльщик — в тот же каталог, рантайм у них общий и одной версии (как у EliteSIP).
+publish src/EliteRec.Updater/EliteRec.Updater.csproj
+
+# Короткие имена: по ним ищут процесс (обновляльщик — по /proc/*/exe) и зовут ярлык и службу.
 mv "$program/EliteRec.App" "$program/EliteRec"
+mv "$program/EliteRec.Updater" "$program/eliterec-updater"
+if [ -n "$provisioning" ]; then
+    install -m 0644 "$provisioning" "$program/provisioning.json"
+else
+    echo "  ВНИМАНИЕ: без --provisioning — пакет не будет обновляться с канала"
+fi
 
 # --- Раскладка по системе ---------------------------------------------------
 
 echo "== раскладка"
 install -D -m 0644 "$root/packaging/applications/eliterec.desktop" "$stage/usr/share/applications/eliterec.desktop"
 install -D -m 0644 "$root/packaging/autostart/eliterec.desktop" "$stage/etc/xdg/autostart/eliterec.desktop"
+for unit in eliterec-updater.service eliterec-updater.timer; do
+    install -D -m 0644 "$root/packaging/systemd/$unit" "$stage/usr/lib/systemd/system/$unit"
+done
 for size in 16 32 48 64 128 256 512; do
     install -D -m 0644 "$root/docs/brand/eliterec-$size.png" "$stage/usr/share/icons/hicolor/${size}x${size}/apps/eliterec.png"
 done
@@ -102,12 +127,14 @@ chmod 0644 "$doc/changelog.gz"
 # Права явно: umask сборщика не должен попасть в /opt на машине менеджера.
 find "$stage" -type d -exec chmod 0755 {} +
 find "$program" -type f -exec chmod 0644 {} +
-chmod 0755 "$program/EliteRec" "$program/createdump"
+chmod 0755 "$program/EliteRec" "$program/eliterec-updater" "$program/createdump"
 
 # --- Пакет ------------------------------------------------------------------
 
 echo "== пакет"
 mkdir -p "$stage/DEBIAN"
+install -m 0755 "$root/packaging/debian/postinst" "$root/packaging/debian/prerm" "$root/packaging/debian/postrm" "$stage/DEBIAN/"
+install -m 0644 "$root/packaging/debian/conffiles" "$stage/DEBIAN/"
 size=$(du -sk --exclude=DEBIAN "$stage" | cut -f1)
 sed -e "s/@VERSION@/$version/" -e "s/@MAINTAINER@/$maintainer/" -e "s/@SIZE@/$size/" \
     "$root/packaging/debian/control" > "$stage/DEBIAN/control"

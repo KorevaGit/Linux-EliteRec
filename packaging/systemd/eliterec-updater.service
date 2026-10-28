@@ -1,0 +1,34 @@
+# Обновление EliteRec: один такт (src/EliteRec.Updater, docs/R6-PACKAGING.md). Песочница — как у
+# elitesip-updater; сама установка идёт отдельным юнитом eliterec-install (systemd-run), вне песочницы.
+[Unit]
+Description=EliteRec — установка обновлений
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/eliterec/eliterec-updater
+StateDirectory=eliterec/updater
+StateDirectoryMode=0700
+# Отметка «ставлю» (/run/eliterec-updater/installing) читается приложением — каталог открыт на чтение.
+RuntimeDirectory=eliterec-updater
+RuntimeDirectoryMode=0755
+UMask=0022
+TimeoutStartSec=40min
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=read-only
+NoNewPrivileges=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+LockPersonality=yes
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6 AF_NETLINK

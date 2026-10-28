@@ -12,6 +12,7 @@
     <ProjectReference Include="../../shared/src/EliteRec.Core/EliteRec.Core.csproj" />
     <ProjectReference Include="../../shared/src/EliteRec.Encoding/EliteRec.Encoding.csproj" />
     <ProjectReference Include="../EliteRec.Audio.Pulse/EliteRec.Audio.Pulse.csproj" />
+    <ProjectReference Include="../../shared/src/EliteRec.Updates/EliteRec.Updates.csproj" />
     <AvaloniaResource Include="Assets/**" />
     <InternalsVisibleTo Include="EliteRec.App.Tests" />
   </ItemGroup>
