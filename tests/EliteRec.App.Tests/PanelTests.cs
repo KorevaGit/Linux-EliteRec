@@ -281,7 +281,8 @@ public class PanelTests
             double chevronRight = chevrons.Select(c => c.TranslatePoint(new(c.Bounds.Width, 0), window)!.Value.X).Min();
             Assert.True(chevronRight <= timerLeft - 4, $"шеврон {chevronRight}, таймер {timerLeft}");
             using var frame = window.CaptureRenderedFrame();
-            frame!.Save(Path.Combine(AppContext.BaseDirectory, "snapshots", "r5-narrow.png"), PngBitmapEncoderOptions.Default);
+            string folder = Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "snapshots")).FullName; // порядок тестов не задан
+            frame!.Save(Path.Combine(folder, "r5-narrow.png"), PngBitmapEncoderOptions.Default);
         }
         finally { window.Close(); }
     }
@@ -389,7 +390,7 @@ public class PanelTests
             window.Show();
             Assert.Equal("2026-10-28_10-32_", window.FindControl<TextBlock>("StampText")!.Text);
             using var frame = window.CaptureRenderedFrame();
-            frame!.Save(Path.Combine(AppContext.BaseDirectory, "snapshots", "r5-title.png"), PngBitmapEncoderOptions.Default);
+            frame!.Save(Path.Combine(Directory.CreateDirectory(Path.Combine(AppContext.BaseDirectory, "snapshots")).FullName, "r5-title.png"), PngBitmapEncoderOptions.Default);
         }
         finally { window.Close(); }
     }
